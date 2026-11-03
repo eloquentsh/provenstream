@@ -1,0 +1,17 @@
+name = "norules"
+version = "0.1.0"
+defaultTargets = ["NoRules", "norules-engine"]
+
+[[require]]
+name = "provenstream"
+path = "../../.."
+
+[[lean_lib]]
+name = "NoRules"
+
+[[lean_lib]]
+name = "NoRulesRevision"
+
+[[lean_exe]]
+name = "norules-engine"
+root = "NoRulesMain"

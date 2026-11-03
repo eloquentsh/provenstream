@@ -1,0 +1,19 @@
+{"id":"auth/whoami-opener","who":"opener","method":"whoami","params":{},"expect":{"result":{"principal_id":"$opener"}}}
+{"id":"auth/whoami-other","who":"other","method":"whoami","params":{},"expect":{"result":{"principal_id":"$other"}}}
+{"id":"auth/whoami-third","who":"third","method":"whoami","params":{},"expect":{"result":{"principal_id":"$third"}}}
+{"id":"auth/whoami-outsider","who":"outsider","method":"whoami","params":{},"expect":{"result":{"principal_id":"$outsider"}}}
+{"id":"auth/whoami-no-token","who":"none","method":"whoami","params":{},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"auth/whoami-unknown-token","who":"unknown","method":"whoami","params":{},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"auth/revisions-list-no-token","who":"none","method":"revisions.list","params":{},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"auth/rpc-discover-unknown-token","who":"unknown","method":"rpc.discover","params":{},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"auth/stream-get-no-token","who":"none","method":"stream.get","params":{"stream_id":"00000000-0000-4000-8000-000000000000"},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"auth/stream-get-bad-params-no-token","who":"none","method":"stream.get","params":{},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"auth/usage-get-unknown-token","who":"unknown","method":"usage.get","params":{},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"auth/principal-create-no-token","who":"none","method":"principal.create","params":{},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"auth/principal-create-unknown-token","who":"unknown","method":"principal.create","params":{},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"auth/stream-open-no-token","who":"none","method":"stream.open","params":{"proof_revision_url":"$url_core"},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"auth/stream-open-unknown-token","who":"unknown","method":"stream.open","params":{"proof_revision_url":"$url_core"},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"auth/stream-close-unknown-token","who":"unknown","method":"stream.close","params":{"stream_id":"00000000-0000-4000-8000-000000000000"},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"auth/dotted-unknown-method-no-token","who":"none","method":"no.such","params":{},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"auth/not-a-method-no-token","who":"none","method":"nonsense","params":{},"expect":{"error":{"code":-32601,"message":"method not found","data":{"code":"method_not_found"}}}}
+{"id":"auth/not-a-method-unknown-token","who":"unknown","method":"nonsense","params":{},"expect":{"error":{"code":-32601,"message":"method not found","data":{"code":"method_not_found"}}}}

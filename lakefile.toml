@@ -1,0 +1,24 @@
+name = "provenstream"
+version = "0.1.0"
+defaultTargets = ["Provenstream", "core-engine", "ProvenstreamCheck"]
+
+# The core: the base proof (events, rules, commands, schemas, wire forms, theorems), the generic service and the layer
+# mechanism (refinement), the interface layers import, worked examples, and the engine's unproved edge
+# (Provenstream/Engine: the JSON parser and printer, the per-stream map and message dispatch). Core Lean only: no
+# `import Lean`, no Mathlib.
+[[lean_lib]]
+name = "Provenstream"
+
+# The revision core-engine is built from: CoreRevision.lean, written by scripts/stamp_revision before the build (not
+# in git: a commit cannot name its own hash).
+[[lean_lib]]
+name = "CoreRevision"
+
+# The engine of the base proof alone.
+[[lean_exe]]
+name = "core-engine"
+root = "CoreMain"
+
+# The checks that are not propositions (axioms, the dependency audit): imports `Lean`; not part of the verified path.
+[[lean_lib]]
+name = "ProvenstreamCheck"

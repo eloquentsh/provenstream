@@ -1,0 +1,17 @@
+name = "counter"
+version = "0.1.0"
+defaultTargets = ["Counter", "counter-engine"]
+
+[[require]]
+name = "provenstream"
+path = "../../.."
+
+[[lean_lib]]
+name = "Counter"
+
+[[lean_lib]]
+name = "CounterRevision"
+
+[[lean_exe]]
+name = "counter-engine"
+root = "CounterMain"

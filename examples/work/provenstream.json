@@ -1,0 +1,17 @@
+{
+  "name": "work",
+  "engine": "work-engine",
+  "namespaces": [
+    "Work"
+  ],
+  "layer_modules": [
+    "Work/Layer.lean",
+    "Work/Theorems.lean",
+    "Work/Examples.lean"
+  ],
+  "audit_roots": [
+    "Work.work"
+  ],
+  "revision_module": "WorkRevision.lean",
+  "revision_def": "Work.built"
+}

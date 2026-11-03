@@ -1,0 +1,9 @@
+{
+  "name": "norules",
+  "engine": "norules-engine",
+  "namespaces": ["NoRules"],
+  "layer_modules": ["NoRules.lean"],
+  "audit_roots": ["NoRules.answer"],
+  "revision_module": "NoRulesRevision.lean",
+  "revision_def": "NoRules.built"
+}

@@ -1,0 +1,23 @@
+#!/bin/sh
+# Copyright 2026 the Provenstream authors. Licensed under the MIT License. See LICENSE.
+# SPDX-License-Identifier: MIT
+# Write HOST-PROTOCOL.md from the code: the host's registry, the core engine's description and the answer table, as
+# rendered from the OpenRPC document (host/provenstream/openrpc.py). With --check, write nothing and fail if the
+# committed file differs from what the code says (scripts/check.sh runs this). Needs the core engine built and python3
+# (standard library only).
+#
+#   scripts/gen_host_protocol [--check] [CORE_ENGINE]
+set -eu
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+check=no
+if [ "${1:-}" = "--check" ]; then check=yes; shift; fi
+engine="${1:-$ROOT/.lake/build/bin/core-engine}"
+doc="$(PYTHONPATH="$ROOT/host" "${PYTHON:-python3}" -m provenstream.openrpc --engine "$engine" --markdown)"
+if [ "$check" = yes ]; then
+  printf '%s\n' "$doc" | diff -u "$ROOT/HOST-PROTOCOL.md" - || {
+    echo "HOST-PROTOCOL.md is stale: regenerate it with scripts/gen_host_protocol" >&2; exit 1; }
+  echo "HOST-PROTOCOL.md: as the code says"
+else
+  printf '%s\n' "$doc" > "$ROOT/HOST-PROTOCOL.md"
+  echo "HOST-PROTOCOL.md: written"
+fi

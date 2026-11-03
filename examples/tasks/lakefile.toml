@@ -1,0 +1,21 @@
+name = "tasks"
+version = "0.1.0"
+defaultTargets = ["Tasks", "tasks-engine"]
+
+# The core, by path: this example lives in the provenstream repository. A layer project of its own requires it by git
+# URL and commit instead (see `provenstream init`).
+[[require]]
+name = "provenstream"
+path = "../.."
+
+# The tasks layer: it imports `Provenstream.Interface` and nothing else of the core.
+[[lean_lib]]
+name = "Tasks"
+
+# The revision the engine is built from (written before the build; not in git).
+[[lean_lib]]
+name = "TasksRevision"
+
+[[lean_exe]]
+name = "tasks-engine"
+root = "TasksMain"

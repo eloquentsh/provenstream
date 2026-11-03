@@ -1,0 +1,10 @@
+{
+  "name": "tower",
+  "engine": "tower-engine",
+  "namespaces": ["Tower"],
+  "below": ["Tasks"],
+  "layer_modules": ["Tower/Reviews.lean", "Tower/Theorems.lean", "Tower/Examples.lean"],
+  "audit_roots": ["Tower.reviews"],
+  "revision_module": "TowerRevision.lean",
+  "revision_def": "Tower.built"
+}

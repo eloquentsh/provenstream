@@ -1,0 +1,17 @@
+{
+  "name": "log",
+  "engine": "log-engine",
+  "namespaces": [
+    "Log"
+  ],
+  "layer_modules": [
+    "Log/Layer.lean",
+    "Log/Theorems.lean",
+    "Log/Examples.lean"
+  ],
+  "audit_roots": [
+    "Log.log"
+  ],
+  "revision_module": "LogRevision.lean",
+  "revision_def": "Log.built"
+}

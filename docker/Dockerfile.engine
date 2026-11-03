@@ -1,0 +1,69 @@
+# Copyright 2026 the Provenstream authors. Licensed under the MIT License. See LICENSE.
+# SPDX-License-Identifier: MIT
+# An engine, built from a proof repository at a commit with the toolchain the commit pins, in a minimal image.
+#
+#   git -C REPO archive COMMIT | tar -x -C CTX
+#   docker build -f docker/Dockerfile.engine --build-arg REVISION=COMMIT --build-arg REPO_URL=URL \
+#     --build-arg PACKAGE=examples/tasks -t provenstream-engine:COMMIT CTX
+#
+# (docker/build-engine.sh does this, extracts the engine with THIRD_PARTY_NOTICES and LICENSE, and writes its
+# PROVENANCE.json.) The build context is the commit's files only (`git archive`: no .git, no .lake, no working tree).
+# elan is pinned by version and sha256; it installs the toolchain the commit's `lean-toolchain` names (fetched from the
+# Lean release, over TLS: trusted, not pinned by digest here; docs/hosting.md). A project that requires provenstream by
+# git fetches it at the commit its lake-manifest pins.
+
+FROM debian:bookworm-slim AS build
+ARG TARGETARCH
+ARG ELAN_VERSION=v4.2.4
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git python3 && rm -rf /var/lib/apt/lists/*
+RUN set -eu; \
+    case "$TARGETARCH" in \
+      amd64) arch=x86_64;  sum=42b94d4244e8353142c456ec0e4ca6528fd898a6c604d4059f494e706e431f63 ;; \
+      arm64) arch=aarch64; sum=05febd124d84ebf994b2e7479922a5650b1e950c17ae3bd1ddd776b65bb72bf9 ;; \
+      *) echo "unsupported architecture: $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+    curl -sSfL -o /tmp/elan.tar.gz "https://github.com/leanprover/elan/releases/download/$ELAN_VERSION/elan-$arch-unknown-linux-gnu.tar.gz"; \
+    echo "$sum  /tmp/elan.tar.gz" | sha256sum -c -; \
+    tar -xzf /tmp/elan.tar.gz -C /tmp; \
+    /tmp/elan-init -y --no-modify-path --default-toolchain none; \
+    rm -f /tmp/elan.tar.gz /tmp/elan-init
+ENV PATH=/root/.elan/bin:$PATH
+WORKDIR /src
+COPY . .
+ARG REVISION
+ARG REPO_URL=unknown
+ARG PACKAGE=.
+# The revision module the package's provenstream.json names, stamped with the commit (as scripts/stamp_revision does).
+RUN set -eu; cd "$PACKAGE"; \
+    echo "$REVISION" | grep -Eqx '[0-9a-f]{40}|[0-9a-f]{64}' || { echo "REVISION must be a full commit" >&2; exit 1; }; \
+    elan toolchain install "$(cat lean-toolchain)"; \
+    python3 - "$REVISION" "$REPO_URL" "$PACKAGE" <<'PY'
+import json, os, sys
+cfg = json.load(open("provenstream.json"))
+rev, repo = sys.argv[1], sys.argv[2]
+package = os.path.normpath(sys.argv[3]).replace(os.sep, "/")
+package = "" if package == "." else package      # the package path the engine reports: "" is the repository's root
+q = lambda s: '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+open(cfg["revision_module"], "w").write(
+    "import Provenstream.Engine.Step\n\ndef %s : Provenstream.Engine.Revision :=\n  ⟨%s, %s, %s⟩\n"
+    % (cfg["revision_def"], q(rev), q(repo), q(package)))
+open("/engine-name", "w").write(cfg["engine"])
+PY
+RUN set -eu; cd "$PACKAGE"; lake build; \
+    e=".lake/build/bin/$(cat /engine-name)"; "$e" --self-test; "$e" --describe > /describe.json; \
+    lean --version > /lean-version; cp "$e" /engine; \
+    for d in . /src .lake/packages/provenstream; do \
+      if [ -f "$d/THIRD_PARTY_NOTICES" ] && [ -f "$d/LICENSE" ]; then cp "$d/THIRD_PARTY_NOTICES" "$d/LICENSE" /; break; fi; \
+    done; \
+    [ -f /LICENSE ] || { echo "THIRD_PARTY_NOTICES and LICENSE: not in the package, its repository or .lake/packages/provenstream" >&2; exit 1; }; \
+    python3 -c 'import json,sys; d=json.load(open("/describe.json")); assert d["revision"]==sys.argv[1], d["revision"]' "$REVISION"
+
+FROM gcr.io/distroless/cc-debian12:nonroot
+LABEL org.opencontainers.image.licenses="MIT" org.opencontainers.image.source="https://github.com/eloquentsh/provenstream"
+COPY --from=build /engine /engine
+COPY --from=build /describe.json /describe.json
+COPY --from=build /lean-version /lean-version
+# the notices of what the engine contains (the Lean runtime, GMP, mimalloc, libuv) and the proof's license
+COPY --from=build /THIRD_PARTY_NOTICES /THIRD_PARTY_NOTICES
+COPY --from=build /LICENSE /LICENSE
+ENTRYPOINT ["/engine"]

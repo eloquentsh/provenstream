@@ -1,0 +1,17 @@
+{
+  "name": "principals",
+  "engine": "principals-engine",
+  "namespaces": [
+    "Principals"
+  ],
+  "layer_modules": [
+    "Principals/Layer.lean",
+    "Principals/Theorems.lean",
+    "Principals/Examples.lean"
+  ],
+  "audit_roots": [
+    "Principals.principals"
+  ],
+  "revision_module": "PrincipalsRevision.lean",
+  "revision_def": "Principals.built"
+}

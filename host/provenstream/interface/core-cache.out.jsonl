@@ -1,0 +1,27 @@
+{"ready":true}
+{"error":"stream_must_exist"}
+{"synced":"50000000-0000-7000-8000-000000000001","length":0}
+{"error":"stream_must_exist"}
+{"length":0,"error":"out_of_sync"}
+{"error":"refused","detail":"a stored event is not the translation of its stored request"}
+{"error":"refused","detail":"a stored request is refused (stream_must_exist): the stored stream is not Valid"}
+{"error":"refused","detail":"a stored request is refused (only_opener_can_close): the stored stream is not Valid"}
+{"synced":"50000000-0000-7000-8000-000000000001","length":1}
+{"stream_id":"50000000-0000-7000-8000-000000000001","state":{"url":"https://git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c","stream":"50000000-0000-7000-8000-000000000001","opener":"a0000000-0000-4000-8000-000000000001","opened":true,"closed":false},"k":1}
+{"stream_id":"50000000-0000-7000-8000-000000000001","proof_revision_url":"https://git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c","opener_id":"a0000000-0000-4000-8000-000000000001","closed":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"stream_id_must_be_new","at":1,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"only_opener_can_close","at":1,"accept":false}
+{"synced":"50000000-0000-7000-8000-000000000002","length":1}
+{"synced":"50000000-0000-7000-8000-000000000002","length":2}
+{"length":2,"error":"out_of_sync"}
+{"stream_id":"50000000-0000-7000-8000-000000000002","reason":"stream_must_be_open","at":2,"accept":false}
+{"dropped":"50000000-0000-7000-8000-000000000001"}
+{"error":"stream_must_exist"}
+{"state":{"url":"https://git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c","stream":"50000000-0000-7000-8000-000000000001","opener":"a0000000-0000-4000-8000-000000000001","opened":true,"closed":true},"length":2,"checked":"50000000-0000-7000-8000-000000000001"}
+{"error":"refused","detail":"a stored request is refused (stream_must_exist): the stored log is not Valid"}
+{"error":"refused","detail":"a stored request is refused (only_opener_can_close): the stored log is not Valid"}
+{"error":"refused","detail":"a stored event is not the translation of its stored request"}
+{"error":"refused","detail":"a stored row is on another stream"}
+{"synced":"50000000-0000-7000-8000-000000000001","length":2}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"stream_must_be_open","at":2,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","proof_revision_url":"https://git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c","opener_id":"a0000000-0000-4000-8000-000000000001","closed":true}

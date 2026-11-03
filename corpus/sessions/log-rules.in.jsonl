@@ -1,0 +1,17 @@
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"log.append","stream_id":"50000000-0000-7000-8000-000000000001","text":"before the stream"},"fresh":[]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c/examples/log","meta":"a notebook"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"log.append","stream_id":"50000000-0000-7000-8000-000000000001","text":"first entry","meta":"2026-10-30"},"fresh":[]}
+{"actor_id":"b0000000-0000-4000-8000-000000000002","command":{"command":"log.append","stream_id":"50000000-0000-7000-8000-000000000001","text":"an entry by someone else"},"fresh":[]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"log.append","stream_id":"50000000-0000-7000-8000-000000000001","text":"Grüße, 世界: \"quoted\" and \\ backslash"},"fresh":[]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"log.append","stream_id":"50000000-0000-7000-8000-000000000001","text":""},"fresh":[]}
+{"actor_id":"b0000000-0000-4000-8000-000000000002","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c/examples/log"},"fresh":["50000000-0000-7000-8000-000000000002"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"log.append","stream_id":"50000000-0000-7000-8000-000000000002","text":"in BEN's notebook"},"fresh":[]}
+{"actor_id":"b0000000-0000-4000-8000-000000000002","command":{"command":"log.append","stream_id":"50000000-0000-7000-8000-000000000002","text":"BEN's own entry"},"fresh":[]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"log.append","stream_id":"50000000-0000-7000-8000-000000000001","text":"line\nbreak\ttab"},"fresh":[]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"log.append","stream_id":"50000000-0000-7000-8000-000000000001","text":"a\u0000b"},"fresh":[]}
+{"query":"stream","stream_id":"50000000-0000-7000-8000-000000000001"}
+{"actor_id":"b0000000-0000-4000-8000-000000000002","command":{"command":"stream.close","stream_id":"50000000-0000-7000-8000-000000000001"},"fresh":[]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.close","stream_id":"50000000-0000-7000-8000-000000000001"},"fresh":[]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"log.append","stream_id":"50000000-0000-7000-8000-000000000001","text":"after the close"},"fresh":[]}
+{"query":"stream","stream_id":"50000000-0000-7000-8000-000000000001"}
+{"query":"schema"}

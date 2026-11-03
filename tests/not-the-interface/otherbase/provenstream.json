@@ -1,0 +1,9 @@
+{
+  "name": "otherbase",
+  "engine": "otherbase-engine",
+  "namespaces": ["OtherBase"],
+  "layer_modules": ["OtherBase/Layer.lean"],
+  "audit_roots": ["OtherBase.tasks"],
+  "revision_module": "OtherBaseRevision.lean",
+  "revision_def": "OtherBase.built"
+}

@@ -1,0 +1,17 @@
+name = "otherbase"
+version = "0.1.0"
+defaultTargets = ["OtherBase", "otherbase-engine"]
+
+[[require]]
+name = "provenstream"
+path = "../../.."
+
+[[lean_lib]]
+name = "OtherBase"
+
+[[lean_lib]]
+name = "OtherBaseRevision"
+
+[[lean_exe]]
+name = "otherbase-engine"
+root = "OtherBaseMain"

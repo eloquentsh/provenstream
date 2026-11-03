@@ -1,0 +1,18 @@
+{"id":"host/principal-create","who":"opener","method":"principal.create","params":{},"expect":{"result":{"principal_id":"$uuid:new_p","token":"$string:new_token"}}}
+{"id":"host/new-principal-whoami","who":"$new_token","method":"whoami","params":{},"expect":{"result":{"principal_id":"$new_p"}}}
+{"id":"host/new-principal-creates-another","who":"$new_token","method":"principal.create","params":{},"expect":{"result":{"principal_id":"$uuid:newer_p","token":"$string:newer_token"}}}
+{"id":"host/newer-principal-whoami","who":"$newer_token","method":"whoami","params":{},"expect":{"result":{"principal_id":"$newer_p"}}}
+{"id":"host/new-principal-opens","who":"$new_token","method":"stream.open","params":{"proof_revision_url":"$url_core"},"expect":{"result":{"seq":0,"event":{"event":"stream.opened","stream_id":"$uuid:s","actor_id":"$new_p","meta":null,"proof_revision_url":"$url_core"},"chain":"$hex64:c0"}}}
+{"id":"host/new-principal-closes","who":"$new_token","method":"stream.close","params":{"stream_id":"$s"},"expect":{"result":{"seq":1,"event":{"event":"stream.closed","stream_id":"$s","actor_id":"$new_p","meta":null},"chain":"$hex64:c1"}}}
+{"id":"host/reissue-by-token","who":"opener","method":"principal.create","params":{"principal_id":"$new_p"},"expect":{"error":{"code":-32002,"message":"refused","data":{"code":"refused","reason":"only_the_operator_can_reissue_a_principal"}}}}
+{"id":"host/reissue-unissued-by-token","who":"outsider","method":"principal.create","params":{"principal_id":"00000000-0000-4000-8000-000000000001"},"expect":{"error":{"code":-32002,"message":"refused","data":{"code":"refused","reason":"only_the_operator_can_reissue_a_principal"}}}}
+{"id":"host/principal-create-not-an-id","who":"opener","method":"principal.create","params":{"principal_id":"ann"},"expect":{"error":{"code":-32602,"message":"invalid params","data":{"code":"invalid_params","detail":"$string"}}}}
+{"id":"host/principal-create-old-params","who":"opener","method":"principal.create","params":{"kind":"person"},"expect":{"error":{"code":-32602,"message":"invalid params","data":{"code":"invalid_params","detail":"$string"}}}}
+{"id":"host/principal-create-unknown-param","who":"opener","method":"principal.create","params":{"x":1},"expect":{"error":{"code":-32602,"message":"invalid params","data":{"code":"invalid_params","detail":"$string"}}}}
+{"id":"host/token-rotate-no-token","who":"none","method":"token.rotate","params":{},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"host/token-rotate-unknown-token","who":"unknown","method":"token.rotate","params":{},"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"host/spare-whoami","who":"spare","method":"whoami","params":{},"local_only":true,"expect":{"result":{"principal_id":"$spare"}}}
+{"id":"host/token-rotate-with-params","who":"spare","method":"token.rotate","params":{"x":1},"local_only":true,"expect":{"error":{"code":-32602,"message":"invalid params","data":{"code":"invalid_params","detail":"$string"}}}}
+{"id":"host/token-rotate","who":"spare","method":"token.rotate","params":{},"local_only":true,"expect":{"result":{"token":"$string:spare_token"}}}
+{"id":"host/old-token-after-rotate","who":"spare","method":"whoami","params":{},"local_only":true,"expect":{"error":{"code":-32001,"message":"unauthorized","data":{"code":"unauthorized"}}}}
+{"id":"host/new-token-after-rotate","who":"$spare_token","method":"whoami","params":{},"local_only":true,"expect":{"result":{"principal_id":"$spare"}}}

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Copyright 2026 the Provenstream authors. Licensed under the MIT License. See LICENSE.
+# SPDX-License-Identifier: MIT
+# Run the provenstream command line from this checkout without installing it (or: pip install ./host).
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
+PYTHONPATH="$HERE/host${PYTHONPATH:+:$PYTHONPATH}" exec "${PYTHON:-python3}" -m provenstream "$@"

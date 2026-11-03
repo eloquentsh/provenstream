@@ -1,0 +1,39 @@
+[project]
+name = "provenstream"
+version = "0.1.0"
+description = "A stream is a proof: the generic host, the engine build pipeline and the command line of provenstream."
+readme = "README.md"
+license = {text = "MIT"}
+# LICENSE here is a copy of the repository's; setuptools' default license-files globs put it in the sdist and the wheel
+# (checked from setuptools 61 to 84). The PEP 639 keys need setuptools>=77 and a string `license`: not yet.
+authors = [{name = "the Provenstream authors"}]
+requires-python = ">=3.9"
+classifiers = ["Programming Language :: Python :: 3", "License :: OSI Approved :: MIT License"]
+# Compatible ranges, each capped below the next major version (or, before 1.0, below 1.0). The store is SQLite (the
+# standard library) unless the postgres extra is installed: pip install 'provenstream[postgres]'. With the keyring extra,
+# provenstream login keeps tokens in the system keychain instead of ~/.provenstream/credentials.json.
+dependencies = ["starlette>=0.37,<1", "uvicorn>=0.29,<1"]
+
+[project.urls]
+Repository = "https://github.com/eloquentsh/provenstream"
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.1,<4"]
+keyring = ["keyring>=23,<26"]
+test = ["pytest>=7,<9", "httpx>=0.27,<1"]
+
+[project.scripts]
+provenstream = "provenstream.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["provenstream"]
+
+[tool.setuptools.package-data]
+provenstream = ["interface/*.jsonl"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

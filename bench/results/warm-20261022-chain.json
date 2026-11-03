@@ -1,0 +1,53 @@
+{
+  "machine": {
+    "platform": "macOS-15.6-arm64-arm-64bit",
+    "machine": "arm64",
+    "cpus": 10,
+    "python": "3.9.6"
+  },
+  "when": "2026-10-23T03:01:36Z",
+  "build": {
+    "core_build_s": 1.0,
+    "tasks_build_s": 1.0,
+    "lake_cache": "reused from the checkout"
+  },
+  "engine_tasks": {
+    "startup_to_ready_ms": 3.3,
+    "decisions": 2001,
+    "decisions_per_s": 20314,
+    "decide_cpu_s": 0.102,
+    "decide_peak_rss_mib": 5.3,
+    "sync_rows_per_s": 28276,
+    "check_rows_per_s": 4177,
+    "binary_bytes": 3469456
+  },
+  "host_tasks": {
+    "one_stream_one_writer": {
+      "commands": 500,
+      "streams": 1,
+      "writers": 1,
+      "commands_per_s": 2019,
+      "engine_cpu_ms_per_1000": 20.0,
+      "host_cpu_ms_per_1000": 342.5
+    },
+    "one_stream_32_writers": {
+      "commands": 1984,
+      "streams": 1,
+      "writers": 32,
+      "commands_per_s": 4994,
+      "engine_cpu_ms_per_1000": 50.4,
+      "host_cpu_ms_per_1000": 140.1
+    },
+    "64_streams_32_writers": {
+      "commands": 1984,
+      "streams": 64,
+      "writers": 32,
+      "commands_per_s": 2154,
+      "engine_cpu_ms_per_1000": 20.2,
+      "host_cpu_ms_per_1000": 406.8
+    },
+    "stored_bytes_per_event": 395.1,
+    "chain_bytes_per_event": 48.0,
+    "postgres_bytes_per_event_note": "request and event JSON text only, without Postgres row and index overhead"
+  }
+}

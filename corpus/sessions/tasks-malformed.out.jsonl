@@ -1,0 +1,41 @@
+{"ready":true}
+{"error":"malformed","detail":"offset 0: expected: null"}
+{"error":"malformed","detail":"request: expected an object"}
+{"error":"malformed","detail":"request.fresh: missing"}
+{"error":"malformed","detail":"command: unknown command nope"}
+{"error":"malformed","detail":"request: a field is not of its form (an id that is not a canonical lowercase UUID, a string holding U+0000 or a control character, meta over 4096 bytes, or a value its kind refuses)"}
+{"error":"malformed","detail":"request: a field is not of its form (an id that is not a canonical lowercase UUID, a string holding U+0000 or a control character, meta over 4096 bytes, or a value its kind refuses)"}
+{"error":"malformed","detail":"request.actor_id: expected a string"}
+{"error":"malformed","detail":"request.actor_id: missing"}
+{"error":"malformed","detail":"request: unknown key caller"}
+{"error":"malformed","detail":"command: unknown key stream"}
+{"error":"malformed","detail":"command.stream_id: missing"}
+{"error":"malformed","detail":"command: unknown key actor_id"}
+{"error":"malformed","detail":"command: a field is not of its form (an id that is not a canonical lowercase UUID, a string holding U+0000 or a control character, meta over 4096 bytes, or a value its kind refuses)"}
+{"error":"malformed","detail":"command.meta: expected a string or null"}
+{"error":"malformed","detail":"command: a field is not of its form (an id that is not a canonical lowercase UUID, a string holding U+0000 or a control character, meta over 4096 bytes, or a value its kind refuses)"}
+{"error":"malformed","detail":"command: unknown key stream_id"}
+{"error":"malformed","detail":"command.proof_revision_url: missing"}
+{"error":"malformed","detail":"command.proof_revision_url: expected a string"}
+{"error":"malformed","detail":"request: a field is not of its form (an id that is not a canonical lowercase UUID, a string holding U+0000 or a control character, meta over 4096 bytes, or a value its kind refuses)"}
+{"error":"malformed","detail":"command: unknown key actor_kind"}
+{"error":"malformed","detail":"command: expected an object"}
+{"error":"malformed","detail":"sync: expected {stream_id, from, rows}"}
+{"error":"malformed","detail":"load: expected {stream_id, k, state}"}
+{"error":"malformed","detail":"sync: expected {stream_id, from, rows}"}
+{"error":"malformed","detail":"query: expected a stream_id"}
+{"error":"malformed","detail":"request: unknown key query"}
+{"error":"malformed","detail":"request: unknown key extra"}
+{"error":"malformed","detail":"command.parent_task_id: expected a string (a canonical UUID) or null"}
+{"error":"malformed","detail":"command: a field is not of its form (an id that is not a canonical lowercase UUID, a string holding U+0000 or a control character, meta over 4096 bytes, or a value its kind refuses)"}
+{"error":"malformed","detail":"command: a field is not of its form (an id that is not a canonical lowercase UUID, a string holding U+0000 or a control character, meta over 4096 bytes, or a value its kind refuses)"}
+{"error":"malformed","detail":"command: a field is not of its form (an id that is not a canonical lowercase UUID, a string holding U+0000 or a control character, meta over 4096 bytes, or a value its kind refuses)"}
+{"error":"malformed","detail":"command.parent_task_id: expected a string (a canonical UUID) or null"}
+{"error":"malformed","detail":"command: a field is not of its form (an id that is not a canonical lowercase UUID, a string holding U+0000 or a control character, meta over 4096 bytes, or a value its kind refuses)"}
+{"error":"malformed","detail":"command.task_id: missing"}
+{"error":"malformed","detail":"command.assignee_id: missing"}
+{"error":"malformed","detail":"command: a field is not of its form (an id that is not a canonical lowercase UUID, a string holding U+0000 or a control character, meta over 4096 bytes, or a value its kind refuses)"}
+{"error":"malformed","detail":"command: unknown key principal"}
+{"error":"malformed","detail":"command: unknown key assignee_id"}
+{"error":"malformed","detail":"command: unknown command task.done"}
+{"error":"malformed","detail":"command: unknown key ref"}

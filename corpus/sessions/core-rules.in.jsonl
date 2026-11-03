@@ -1,0 +1,36 @@
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.close","stream_id":"50000000-0000-7000-8000-000000000001"},"fresh":[]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/commit/4f1c2a9"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/commit/4F1C2A9E0B7D3C6A5F8E1D2C3B4A59687F6E5D4C"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c/"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c/examples//tasks"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c/examples/../tasks"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c/./tasks"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c/examples/tasks~1"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c/tasks"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c "},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c","meta":"the first stream"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"d0000000-0000-4000-8000-000000000004","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"d0000000-0000-4000-8000-000000000004","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/commit/4f1c2a9"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c"},"fresh":[]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c"},"fresh":["50000000-0000-7000-8000-000000000002","50000000-0000-7000-8000-000000000003"]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.close","stream_id":"50000000-0000-7000-8000-000000000001"},"fresh":["50000000-0000-7000-8000-000000000002"]}
+{"actor_id":"b0000000-0000-4000-8000-000000000002","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c/examples/tasks"},"fresh":["50000000-0000-7000-8000-000000000002"]}
+{"actor_id":"c0000000-0000-4000-8000-000000000003","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook.git#9e107d9d372bb6826bd81d3542a419d6c1f2e3d4b5a697887766554433221100"},"fresh":["50000000-0000-7000-8000-000000000003"]}
+{"actor_id":"d0000000-0000-4000-8000-000000000004","command":{"command":"stream.open","proof_revision_url":"ssh+git://git.example.org/acme/notebook@4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c"},"fresh":["50000000-0000-7000-8000-000000000004"]}
+{"actor_id":"e0000000-0000-4000-8000-000000000005","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c/proofs/v1.2_rc-3/Main"},"fresh":["50000000-0000-7000-8000-000000000005"]}
+{"query":"stream","stream_id":"50000000-0000-7000-8000-000000000001"}
+{"actor_id":"b0000000-0000-4000-8000-000000000002","command":{"command":"stream.close","stream_id":"50000000-0000-7000-8000-000000000001"},"fresh":[]}
+{"actor_id":"c0000000-0000-4000-8000-000000000003","command":{"command":"stream.close","stream_id":"50000000-0000-7000-8000-000000000001","meta":"closing someone else's stream"},"fresh":[]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.close","stream_id":"50000000-0000-7000-8000-000000000002"},"fresh":[]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.close","stream_id":"50000000-0000-7000-8000-000000000001","meta":"done"},"fresh":[]}
+{"actor_id":"a0000000-0000-4000-8000-000000000001","command":{"command":"stream.close","stream_id":"50000000-0000-7000-8000-000000000001"},"fresh":[]}
+{"actor_id":"b0000000-0000-4000-8000-000000000002","command":{"command":"stream.close","stream_id":"50000000-0000-7000-8000-000000000001"},"fresh":[]}
+{"actor_id":"e0000000-0000-4000-8000-000000000005","command":{"command":"stream.open","proof_revision_url":"https://git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c"},"fresh":["50000000-0000-7000-8000-000000000001"]}
+{"actor_id":"b0000000-0000-4000-8000-000000000002","command":{"command":"stream.close","stream_id":"50000000-0000-7000-8000-000000000002"},"fresh":[]}
+{"query":"stream","stream_id":"50000000-0000-7000-8000-000000000001"}
+{"query":"stream","stream_id":"50000000-0000-7000-8000-000000000002"}
+{"query":"stream","stream_id":"50000000-0000-7000-8000-000000000003"}
+{"query":"stream","stream_id":"50000000-0000-7000-8000-000000000006"}
+{"query":"schema"}

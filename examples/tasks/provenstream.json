@@ -1,0 +1,17 @@
+{
+  "name": "tasks",
+  "engine": "tasks-engine",
+  "namespaces": [
+    "Tasks"
+  ],
+  "layer_modules": [
+    "Tasks/Layer.lean",
+    "Tasks/Theorems.lean",
+    "Tasks/Examples.lean"
+  ],
+  "audit_roots": [
+    "Tasks.tasks"
+  ],
+  "revision_module": "TasksRevision.lean",
+  "revision_def": "Tasks.built"
+}

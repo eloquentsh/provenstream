@@ -1,0 +1,24 @@
+name = "tower"
+version = "0.1.0"
+defaultTargets = ["Tower", "tower-engine"]
+
+[[require]]
+name = "provenstream"
+path = "../.."
+
+[[require]]
+name = "tasks"
+path = "../../examples/tasks"
+
+# A three-level tower: the base proof <- layer A (examples/tasks) <- layer B (reviews). Each layer imports only the
+# core's interface (and B imports A).
+[[lean_lib]]
+name = "Tower"
+
+# The revision the engine is built from (written before the build; not in git).
+[[lean_lib]]
+name = "TowerRevision"
+
+[[lean_exe]]
+name = "tower-engine"
+root = "TowerMain"

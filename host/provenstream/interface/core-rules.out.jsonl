@@ -1,0 +1,37 @@
+{"ready":true}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"stream_must_exist","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"revision_url_must_name_a_commit","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"revision_url_must_name_a_commit","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"revision_url_must_name_a_commit","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"revision_url_must_name_a_commit","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"revision_url_must_name_a_commit","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"revision_url_must_name_a_commit","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"revision_url_must_name_a_commit","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"revision_url_must_name_a_commit","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"revision_url_must_name_a_commit","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"revision_url_must_name_a_commit","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"revision_url_must_name_a_commit","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","event":{"stream_id":"50000000-0000-7000-8000-000000000001","proof_revision_url":"https://git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c","meta":"the first stream","event":"stream.opened","actor_id":"a0000000-0000-4000-8000-000000000001"},"at":0,"accept":true}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"stream_id_must_be_new","at":1,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"stream_id_must_be_new","at":1,"accept":false}
+{"stream_id":"","reason":"fresh_ids_must_match_the_command","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000002","reason":"fresh_ids_must_match_the_command","at":0,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"fresh_ids_must_match_the_command","at":1,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000002","event":{"stream_id":"50000000-0000-7000-8000-000000000002","proof_revision_url":"https://git.example.org/acme/notebook/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c/examples/tasks","meta":null,"event":"stream.opened","actor_id":"b0000000-0000-4000-8000-000000000002"},"at":0,"accept":true}
+{"stream_id":"50000000-0000-7000-8000-000000000003","event":{"stream_id":"50000000-0000-7000-8000-000000000003","proof_revision_url":"https://git.example.org/acme/notebook.git#9e107d9d372bb6826bd81d3542a419d6c1f2e3d4b5a697887766554433221100","meta":null,"event":"stream.opened","actor_id":"c0000000-0000-4000-8000-000000000003"},"at":0,"accept":true}
+{"stream_id":"50000000-0000-7000-8000-000000000004","event":{"stream_id":"50000000-0000-7000-8000-000000000004","proof_revision_url":"ssh+git://git.example.org/acme/notebook@4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c","meta":null,"event":"stream.opened","actor_id":"d0000000-0000-4000-8000-000000000004"},"at":0,"accept":true}
+{"stream_id":"50000000-0000-7000-8000-000000000005","event":{"stream_id":"50000000-0000-7000-8000-000000000005","proof_revision_url":"https://git.example.org/acme/notebook/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c/proofs/v1.2_rc-3/Main","meta":null,"event":"stream.opened","actor_id":"e0000000-0000-4000-8000-000000000005"},"at":0,"accept":true}
+{"stream_id":"50000000-0000-7000-8000-000000000001","proof_revision_url":"https://git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c","opener_id":"a0000000-0000-4000-8000-000000000001","closed":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"only_opener_can_close","at":1,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"only_opener_can_close","at":1,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000002","reason":"only_opener_can_close","at":1,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","event":{"stream_id":"50000000-0000-7000-8000-000000000001","meta":"done","event":"stream.closed","actor_id":"a0000000-0000-4000-8000-000000000001"},"at":1,"accept":true}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"stream_must_be_open","at":2,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"stream_must_be_open","at":2,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000001","reason":"stream_id_must_be_new","at":2,"accept":false}
+{"stream_id":"50000000-0000-7000-8000-000000000002","event":{"stream_id":"50000000-0000-7000-8000-000000000002","meta":null,"event":"stream.closed","actor_id":"b0000000-0000-4000-8000-000000000002"},"at":1,"accept":true}
+{"stream_id":"50000000-0000-7000-8000-000000000001","proof_revision_url":"https://git.example.org/acme/notebook/commit/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c","opener_id":"a0000000-0000-4000-8000-000000000001","closed":true}
+{"stream_id":"50000000-0000-7000-8000-000000000002","proof_revision_url":"https://git.example.org/acme/notebook/tree/4f1c2a9e0b7d3c6a5f8e1d2c3b4a59687f6e5d4c/examples/tasks","opener_id":"b0000000-0000-4000-8000-000000000002","closed":true}
+{"stream_id":"50000000-0000-7000-8000-000000000003","proof_revision_url":"https://git.example.org/acme/notebook.git#9e107d9d372bb6826bd81d3542a419d6c1f2e3d4b5a697887766554433221100","opener_id":"c0000000-0000-4000-8000-000000000003","closed":false}
+{"error":"stream_must_exist"}
+{"commands":[{"who":"anyone signed in; the caller becomes the stream's opener","stream_id":"stream_id","rules":["stream_id_must_be_new","revision_url_must_name_a_commit"],"params":[{"name":"proof_revision_url","kind":"text"},{"name":"meta","kind":"meta"}],"name":"stream.open","minted":["stream_id"],"fresh":1,"event":{"name":"stream.opened","fields":["event","stream_id","actor_id","meta","proof_revision_url"]}},{"who":"the stream's opener","stream_id":"stream_id","rules":["stream_must_exist","stream_must_be_open","only_opener_can_close"],"params":[{"name":"stream_id","kind":"uuid"},{"name":"meta","kind":"meta"}],"name":"stream.close","minted":[],"fresh":0,"event":{"name":"stream.closed","fields":["event","stream_id","actor_id","meta"]}}]}

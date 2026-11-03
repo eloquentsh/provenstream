@@ -1,0 +1,52 @@
+#!/bin/sh
+# Copyright 2026 the Provenstream authors. Licensed under the MIT License. See LICENSE.
+# SPDX-License-Identifier: MIT
+# Write the Lean module that tells an engine which revision it is built from. It is not in git: a commit cannot name
+# its own hash. Run before `lake build` (scripts/check.sh, `provenstream build` and the Dockerfile do).
+#
+#   scripts/stamp_revision OUT.lean DEF_NAME [GIT_DIR]
+#
+# writes OUT.lean defining `DEF_NAME : Provenstream.Engine.Revision`, from
+#   the commit: $PROVENSTREAM_REVISION if set (40 or 64 lowercase hex digits: a build from a tree with no .git, such as
+#               `provenstream build` or a container build), else git's HEAD in GIT_DIR (default: OUT's directory) with
+#               "-dirty" appended if the tree has changes, else "unknown";
+#   the repository: $PROVENSTREAM_REPO_URL if set, else the URL of the git remote `origin`, else "unknown";
+#   the package: $PROVENSTREAM_PACKAGE if set (a package path: `/`-separated segments of [A-Za-z0-9._-], none empty,
+#               `.` or `..`), else "" (the repository's root package).
+#
+# The file is rewritten only when its content changes, so an unchanged revision costs no rebuild. What it says is
+# trusted, not proved (gap_engine_is_revision).
+set -eu
+OUT="${1:?usage: stamp_revision OUT.lean DEF_NAME [GIT_DIR]}"; NAME="${2:?usage: stamp_revision OUT.lean DEF_NAME [GIT_DIR]}"
+GITDIR="${3:-$(cd "$(dirname "$OUT")" && pwd)}"
+if [ -n "${PROVENSTREAM_REVISION:-}" ]; then
+  commit="$PROVENSTREAM_REVISION"
+  if ! printf '%s' "$commit" | grep -Eqx '[0-9a-f]{40}|[0-9a-f]{64}'; then
+    echo "stamp_revision: PROVENSTREAM_REVISION is not a full commit hash: $commit" >&2; exit 1
+  fi
+elif commit="$(git -C "$GITDIR" rev-parse HEAD 2>/dev/null)"; then
+  if [ -n "$(git -C "$GITDIR" status --porcelain 2>/dev/null)" ]; then commit="$commit-dirty"; fi
+else
+  commit="unknown"
+fi
+repo="${PROVENSTREAM_REPO_URL:-$(git -C "$GITDIR" remote get-url origin 2>/dev/null || true)}"
+repo="${repo:-unknown}"
+package="${PROVENSTREAM_PACKAGE:-}"
+if [ -n "$package" ]; then
+  if ! printf '%s' "$package" | grep -Eqx '[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*' || \
+     printf '%s' "$package" | grep -Eq '(^|/)\.{1,2}(/|$)'; then
+    echo "stamp_revision: PROVENSTREAM_PACKAGE is not a package path: $package" >&2; exit 1
+  fi
+fi
+lean_str() { printf '"%s"' "$(printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"; }
+new="$(cat <<LEAN
+import Provenstream.Engine.Step
+
+/-! Written by scripts/stamp_revision; not in git. The revision this engine is built from. -/
+
+def $NAME : Provenstream.Engine.Revision :=
+  ⟨$(lean_str "$commit"), $(lean_str "$repo"), $(lean_str "$package")⟩
+LEAN
+)"
+if [ ! -f "$OUT" ] || [ "$(cat "$OUT")" != "$new" ]; then printf '%s\n' "$new" > "$OUT"; fi
+echo "stamp_revision: $commit ($repo${package:+, $package}) -> $OUT"

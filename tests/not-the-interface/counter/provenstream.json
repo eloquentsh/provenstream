@@ -1,0 +1,9 @@
+{
+  "name": "counter",
+  "engine": "counter-engine",
+  "namespaces": ["Counter"],
+  "layer_modules": ["Counter.lean"],
+  "audit_roots": ["Counter.total"],
+  "revision_module": "CounterRevision.lean",
+  "revision_def": "Counter.built"
+}

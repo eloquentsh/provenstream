@@ -1,0 +1,37 @@
+# Copyright 2026 the Provenstream authors. Licensed under the MIT License. See LICENSE.
+# SPDX-License-Identifier: MIT
+# Local hosting: Postgres and the host. Engines are mounted read-only from ./engines (docker/build-engine.sh fills it).
+#
+#   docker/build-engine.sh . "$(git rev-parse HEAD)" examples/tasks    # an engine of this repository's tasks example
+#   docker compose -f docker/docker-compose.yml up -d
+#   docker compose -f docker/docker-compose.yml exec host provenstream host principal create   # the first principal: prints {principal_id, token}
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: provenstream
+      POSTGRES_PASSWORD: provenstream
+      POSTGRES_DB: provenstream
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U provenstream"]
+      interval: 2s
+      retries: 30
+  host:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.host
+    environment:
+      PROVENSTREAM_DATABASE_URL: postgresql://provenstream:provenstream@db:5432/provenstream
+      PROVENSTREAM_ENGINES: /engines
+    command: ["serve", "--host", "0.0.0.0", "--port", "8080", "--engines", "/engines", "--idle-timeout", "300"]
+    volumes:
+      - ./engines:/engines:ro
+    ports:
+      - "127.0.0.1:${PROVENSTREAM_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  pgdata:

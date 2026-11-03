@@ -1,0 +1,9 @@
+{
+  "name": "core",
+  "engine": "core-engine",
+  "namespaces": ["Provenstream"],
+  "layer_modules": [],
+  "audit_roots": ["Provenstream.coreService"],
+  "revision_module": "CoreRevision.lean",
+  "revision_def": "coreBuilt"
+}

@@ -1,0 +1,15 @@
+# Copyright 2026 the Provenstream authors. Licensed under the MIT License. See LICENSE.
+# SPDX-License-Identifier: MIT
+# The generic host. Engines are not in the image: they are mounted read-only at /engines (an engines directory with
+# revisions.json, written by `provenstream install`), each a linux build of its revision (docker/build-engine.sh).
+FROM python:3.12-slim
+LABEL org.opencontainers.image.licenses="MIT" org.opencontainers.image.source="https://github.com/eloquentsh/provenstream"
+WORKDIR /app
+COPY host /app/host
+RUN pip install --no-cache-dir '/app/host[postgres]' && useradd -r -u 10001 provenstream
+# the host's license and the notices of what it installs (psycopg is LGPL-3.0) and of what an engine contains
+COPY THIRD_PARTY_NOTICES LICENSE /app/
+USER provenstream
+EXPOSE 8080
+ENTRYPOINT ["provenstream"]
+CMD ["serve", "--host", "0.0.0.0", "--port", "8080", "--engines", "/engines"]
