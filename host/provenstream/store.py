@@ -12,12 +12,23 @@ kind, no role, no account.
 database shared by several hosts, and needs the `postgres` extra (`pip install provenstream[postgres]`). `open_store`
 picks one by the target's form. `export` and `import_export` move every stream from one store to another, chains
 checked.
+
+The event index (`event_index`) is what `revision.events` reads: every stored event has one row, at a position `pos`
+in the host's append order, with its stream's revision (the key its row 0's `proof_revision_url` names; "" when it
+names none) and its event name. The index is written in the same transaction as the events it indexes
+(`append_batch`, `import_export`), so it is exactly as complete as the events table, and a database from before the
+index is backfilled once at open (`_backfill_index`, idempotent: it indexes what the index lacks). Positions are
+assigned under the writers' serialisation (SQLite's `BEGIN IMMEDIATE`; on Postgres an advisory transaction lock,
+`_lock_index`), so an event committed later always has a higher position: a reader that polls from the last position
+it saw never misses one. The index is derived data, never read to verify anything: `provenstream verify` reads the
+events.
 """
 from __future__ import annotations
 import hashlib, logging, os, secrets, threading, time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar
 
 from . import chain, ids, wire
+from .revisions import revision_of_url
 
 log = logging.getLogger("provenstream.store")
 
@@ -57,6 +68,19 @@ def _insert_token(ex, principal: str, token: str) -> None:
     ex("INSERT INTO tokens (token_hash, principal, issued_at) VALUES (%s, %s, %s)", (hash_token(token), principal, now()))
 
 
+INDEX_CHUNK = 5000                       # rows per round of a backfill
+
+
+def _event_dict(ev: Any) -> Any:
+    """An event as stored (JSON text) or as given (a dict), read."""
+    if isinstance(ev, str):
+        try:
+            return wire.loads(ev)
+        except wire.BadJson:
+            return None
+    return ev
+
+
 def rows_hash(rows: Sequence[Row]) -> str:
     """SHA-256 over a stream's first k rows, as stored: what a snapshot says it is the fold of."""
     h = hashlib.sha256()
@@ -91,6 +115,82 @@ class StreamStore:
 
     def _after_commit(self) -> None:
         """A seam for tests: fail after a batch committed, as a lost connection would."""
+
+    # -- the event index (the module's docstring says what it holds) --------------------------------------------------
+
+    ORDER_OF_APPEND = "e.accepted_at, e.stream_id, e.seq"   # a backfill's order: the time (to the second), then the
+                                                            # stream and seq; SqliteStore's rowid is exact
+
+    def _lock_index(self, ex) -> None:
+        """Serialise index writers of other connections for the rest of this transaction (Postgres; SQLite's
+        `BEGIN IMMEDIATE` already holds the file's write lock)."""
+
+    def _stream_revision(self, ex, stream: str) -> str:
+        """The revision of a stream with rows: from its row 0 in the index, else from its stored row 0."""
+        r = ex("SELECT revision FROM event_index WHERE stream_id = %s AND seq = 0", (stream,))
+        if r:
+            return r[0][0]
+        r = ex("SELECT event FROM events WHERE stream_id = %s AND seq = 0", (stream,))
+        ev = _event_dict(r[0][0]) if r else None
+        return (revision_of_url(ev.get("proof_revision_url")) if isinstance(ev, dict) else None) or ""
+
+    def _index(self, ex, rows: Sequence[Tuple[str, int, Any]], revisions: Dict[str, str]) -> None:
+        """Index `rows` (`(stream, seq, event)`, the event a dict or its JSON text, in append order) at the positions
+        after the last one taken, inside the caller's transaction: one row each, its stream's revision and its event
+        name. `revisions` caches each stream's revision across calls; a stream it lacks is read from its row 0 (the row
+        itself when `seq` is 0)."""
+        if not rows:
+            return
+        self._lock_index(ex)
+        base = ex("SELECT coalesce(max(pos), 0) FROM event_index")[0][0]
+        for i, (s, seq, ev) in enumerate(rows):
+            ev = _event_dict(ev)
+            if s not in revisions:
+                if seq == 0:
+                    url = ev.get("proof_revision_url") if isinstance(ev, dict) else None
+                    revisions[s] = revision_of_url(url) or ""
+                else:
+                    revisions[s] = self._stream_revision(ex, s)
+            name = ev.get("event") if isinstance(ev, dict) and isinstance(ev.get("event"), str) else ""
+            pos = base + 1 + i
+            ex("INSERT INTO event_index (pos, revision, stream_id, seq, name) VALUES (%s, %s, %s, %s, %s)",
+               (pos, revisions[s], s, seq, name))
+
+    def _backfill_index(self) -> int:
+        """Index every stored event the index lacks (a database from before the index: once; afterwards nothing), in
+        the order they were appended as well as this store knows it (`ORDER_OF_APPEND`), in one transaction; answers how
+        many were indexed. Idempotent: run at every open."""
+        def body(ex):
+            n, revisions = 0, {}
+            while True:
+                missing = ex("SELECT e.stream_id, e.seq, e.event FROM events e LEFT JOIN event_index i "
+                             "ON i.stream_id = e.stream_id AND i.seq = e.seq WHERE i.pos IS NULL ORDER BY %s LIMIT %d"
+                             % (self.ORDER_OF_APPEND, INDEX_CHUNK))
+                if not missing:
+                    return n
+                self._index(ex, [tuple(r) for r in missing], revisions)
+                n += len(missing)
+        n = self._tx(body)
+        if n:
+            log.info("event index: %d stored events indexed", n)
+        return n
+
+    def find_events(self, revision: str, name: Optional[str] = None, after: int = 0,
+                    limit: int = 1000) -> List[Tuple[int, str, int, str, Optional[bytes]]]:
+        """The indexed events of `revision` after position `after`, in append order, at most `limit`, those named
+        `name` when it is given: `(pos, stream_id, seq, event JSON, chain head)` each. One walk of the index in position
+        order from `after` (on `(revision, pos)`, or `(revision, name, pos)`); the events table is joined by primary
+        key for the rows answered alone."""
+        sql = ["SELECT i.pos, i.stream_id, i.seq, e.event, e.chain FROM event_index i",
+               "JOIN events e ON e.stream_id = i.stream_id AND e.seq = i.seq WHERE i.revision = %s AND i.pos > %s"]
+        args: List[Any] = [revision, after]
+        if name is not None:
+            sql.append("AND i.name = %s")
+            args.append(name)
+        sql.append("ORDER BY i.pos LIMIT %s")
+        args.append(limit)
+        return [(pos, s, seq, ev, bytes(ch) if ch is not None else None)
+                for pos, s, seq, ev, ch in self._exec(" ".join(sql), args)]
 
     # -- streams ------------------------------------------------------------------------------------------------------
 
@@ -137,6 +237,7 @@ class StreamStore:
             for p in prepared:
                 ex("INSERT INTO events (stream_id, seq, request, event, idem, accepted_at, meta_salt, chain) "
                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", p)
+            self._index(ex, [(stream, expected_len + i, r[1]) for i, r in enumerate(rows)], {})
             self._before_commit()
             return True
         try:
@@ -195,6 +296,10 @@ class StreamStore:
             for r in rows:
                 ex("INSERT INTO events (stream_id, seq, request, event, idem, accepted_at, meta_salt, chain) "
                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", r)
+            # the index, in the order the rows were accepted as well as an export says it (its times, then the stream)
+            order = sorted(((s, r["seq"], r["ev"], r["accepted_at"] or "") for s, rs in streams.items() for r in rs),
+                           key=lambda t: (t[3], t[0], t[1]))
+            self._index(ex, [(s, seq, ev) for s, seq, ev, _ in order], {})
         try:
             self._tx(body)
         except ImportRefused:
@@ -450,11 +555,24 @@ PG_SCHEMA = [
          scope TEXT NOT NULL, key TEXT NOT NULL, received BIGINT NOT NULL DEFAULT 0, accepted BIGINT NOT NULL DEFAULT 0,
          events BIGINT NOT NULL DEFAULT 0, bytes BIGINT NOT NULL DEFAULT 0, engine_ms BIGINT NOT NULL DEFAULT 0,
          cpu_ms BIGINT NOT NULL DEFAULT 0, last_active TEXT NOT NULL, PRIMARY KEY (scope, key))""",
+    # the event index (the module docstring): one row per event at its position in append order
+    """CREATE TABLE IF NOT EXISTS event_index (
+         pos BIGINT PRIMARY KEY, revision TEXT NOT NULL, stream_id TEXT NOT NULL, seq INTEGER NOT NULL,
+         name TEXT NOT NULL, UNIQUE (stream_id, seq))""",
+    "CREATE INDEX IF NOT EXISTS event_index_revision ON event_index (revision, pos)",
+    "CREATE INDEX IF NOT EXISTS event_index_name ON event_index (revision, name, pos)",
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'event_index_append_only') THEN
+           CREATE TRIGGER event_index_append_only BEFORE UPDATE OR DELETE ON event_index
+             FOR EACH ROW EXECUTE FUNCTION events_append_only();
+         END IF; END $$""",
 ]
 
 
 class PostgresStore(StreamStore):
     """A Postgres database shared by any number of servers. `dsn` is a libpq connection string."""
+
+    INDEX_LOCK = 551002                  # the advisory lock index writers take (`_lock_index`), for their transaction
 
     def __init__(self, dsn: str):
         import psycopg
@@ -468,6 +586,7 @@ class PostgresStore(StreamStore):
             try:
                 for stmt in PG_SCHEMA:
                     self.conn.execute(stmt)
+                self._backfill_index()
             finally:
                 self.conn.execute("SELECT pg_advisory_unlock(551001)")
 
@@ -534,6 +653,12 @@ class PostgresStore(StreamStore):
 
     def _unique_violation(self, x):
         return isinstance(x, self._psycopg.errors.UniqueViolation)
+
+    def _lock_index(self, ex) -> None:
+        """Index writers of every host on this database take turns for the rest of their transaction, so positions are
+        assigned in commit order (a later committer reads a higher max): the cost is that appends to different streams
+        from different hosts no longer commit at once."""
+        ex("SELECT pg_advisory_xact_lock(%s)", (self.INDEX_LOCK,))
 
 
 SQLITE_SUFFIXES = (".db", ".sqlite", ".sqlite3")

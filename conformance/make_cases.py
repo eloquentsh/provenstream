@@ -864,11 +864,19 @@ def parse():
 
 def reads():
     """The stream's queries: reading is unrestricted, so any principal reads any stream, opened by anyone; a stream
-    with no rows is stream_must_exist."""
+    with no rows is stream_must_exist. `revision.events` reads across every stream of a revision, which other sessions
+    share (the three carriers of a compared run, the other themes), so what it answers is checked by shape: a page of
+    events of one revision, each with its stream, seq and chain head, and a position or null; a name no event of the
+    revision has answers none; a revision with no engine is revision_must_be_installed, and a revision, event name,
+    position or limit of the wrong form is invalid_params."""
     s = "$s"
     notes = {"$open": True}
     view = lambda closed=False: {"stream_id": s, "proof_revision_url": "$url_core", "opener_id": "$opener",
                                  "closed": closed}
+    R = "$rev_core"
+    any_event = {"$open": True, "event": "$string", "stream_id": "$uuid", "actor_id": "$uuid", "seq": "$int",
+                 "chain": "$hex64"}
+    an_open = dict(any_event, event="stream.opened", seq=0, meta="$any", proof_revision_url="$url_core")
     return [
         open_("open"),
         call("get-by-opener", "opener", "stream.get", {"stream_id": s}, ok(view())),
@@ -881,6 +889,33 @@ def reads():
             {"seq": 0, "request": "$any", "event": "$any", "meta_salt": "$any", "chain": "$c0"}],
             "next": None})), check="chain"),
         call("describe-by-outsider", "outsider", "stream.describe", {"stream_id": s}, ok(described("core"))),
+        call("revision-events-first", "outsider", "revision.events", {"revision": R, "limit": 1},
+             ok({"revision": R, "events": [an_open], "next": "$int"})),
+        call("revision-events-first-open", "third", "revision.events",
+             {"revision": R, "event": "stream.opened", "limit": 1}, ok({"revision": R, "events": [an_open], "next": "$int"})),
+        call("revision-events-a-page", "other", "revision.events", {"revision": R, "limit": 3},
+             ok({"revision": R, "events": [an_open, any_event, any_event], "next": "$int"})),
+        call("revision-events-of-no-such-name", "third", "revision.events", {"revision": R, "event": "stream.nothing"},
+             ok({"revision": R, "events": [], "next": None})),
+        call("revision-events-of-another-proof", "third", "revision.events", {"revision": R, "event": "log.appended"},
+             ok({"revision": R, "events": [], "next": None})),
+        call("revision-events-unknown-revision", "opener", "revision.events", {"revision": NO_COMMIT},
+             refused("revision_must_be_installed")),
+        call("revision-events-unknown-package", "outsider", "revision.events",
+             {"revision": "${commit}/examples/nothing"}, refused("revision_must_be_installed")),
+        call("revision-events-short-revision", "opener", "revision.events", {"revision": "abc1234"}, bad_params()),
+        call("revision-events-by-url", "opener", "revision.events", {"revision": "$url_core"}, bad_params()),
+        call("revision-events-missing-revision", "opener", "revision.events", {}, bad_params()),
+        call("revision-events-bad-event-name", "opener", "revision.events", {"revision": R, "event": "opened"},
+             bad_params()),
+        call("revision-events-from-text", "opener", "revision.events", {"revision": R, "from": "1"}, bad_params()),
+        call("revision-events-from-negative", "opener", "revision.events", {"revision": R, "from": -1}, bad_params()),
+        call("revision-events-limit-0", "opener", "revision.events", {"revision": R, "limit": 0}, bad_params()),
+        call("revision-events-limit-over", "opener", "revision.events", {"revision": R, "limit": 1001}, bad_params()),
+        call("revision-events-unknown-key", "opener", "revision.events", {"revision": R, "stream_id": s},
+             bad_params()),
+        call("revision-events-where-is-no-param", "opener", "revision.events",
+             {"revision": R, "where": {"stream_id": s}}, bad_params()),
         call("usage-by-outsider", "outsider", "usage.get", {"scope": "stream", "key": s},
              ok({"usage": "$any", "notes": notes})),
         call("usage-per-revision", "third", "usage.get", {"scope": "revision"}, ok({"usage": "$any", "notes": notes})),
@@ -921,7 +956,9 @@ def reads():
 
 
 def paging():
-    """`stream.events` and `stream.rows` page from `from`, at most `limit` (1 to 1000), with `next`."""
+    """`stream.events` and `stream.rows` page from `from`, at most `limit` (1 to 1000), with `next`; `revision.events`
+    pages the same way by position: a page's `next` is the `from` of the next, and the pages of one event name of the
+    log revision end with null (checked by shape: the revision's streams are shared with other sessions)."""
     s = "$s"
     texts = ["one", "two", "three"]
     events = [dict(ev_open(s, proof="log"), seq=0, chain="$c0")] + \
@@ -963,6 +1000,23 @@ def paging():
              rows([row(3)], None), **P),
         call("rows-from-past-the-end", "third", "stream.rows", {"stream_id": s, "from": 5}, rows([], None), **P),
         call("rows-limit-over", "third", "stream.rows", {"stream_id": s, "limit": 5000}, bad_params(), **P),
+    ] + revision_paging(P)
+
+
+def revision_paging(P):
+    R = "$rev_log"
+    appended = {"$open": True, "event": "log.appended", "stream_id": "$uuid", "actor_id": "$uuid", "seq": "$int",
+                "chain": "$hex64", "text": "$string"}
+    return [
+        call("revision-events-appended-limit-2", "third", "revision.events",
+             {"revision": R, "event": "log.appended", "limit": 2},
+             ok({"revision": R, "events": [appended, appended], "next": "$int:cur"}), **P),
+        call("revision-events-appended-from-next", "third", "revision.events",
+             {"revision": R, "event": "log.appended", "from": "$cur", "limit": 1},
+             ok({"revision": R, "events": [appended], "next": "$int"}), **P),
+        call("revision-events-from-far-past-the-end", "opener", "revision.events",
+             {"revision": R, "event": "log.appended", "from": 10 ** 12},
+             ok({"revision": R, "events": [], "next": None}), **P),
     ]
 
 
@@ -1071,8 +1125,8 @@ def discovery():
     """`rpc.discover` (OpenRPC), `revision.describe`, `revisions.list`: what a host says it serves, each of the five
     proofs a revision of one commit."""
     method = lambda name, kind: {"$open": True, "name": name, "x-provenstream-kind": kind}
-    queries = ["revision.describe", "revisions.list", "rpc.discover", "stream.describe", "stream.events",
-               "stream.get", "stream.head", "stream.rows", "usage.get", "whoami"]
+    queries = ["revision.describe", "revision.events", "revisions.list", "rpc.discover", "stream.describe",
+               "stream.events", "stream.get", "stream.head", "stream.rows", "usage.get", "whoami"]
     errors = {c: {"$open": True, "code": rpc, "message": m, "data": {"code": c}} for c, (rpc, m) in TABLE.items()}
     proof_commands = sorted({c for p in PROOFS for c in COMMANDS[p]})
     doc = {"$open": True, "openrpc": "1.3.2",

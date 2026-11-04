@@ -34,6 +34,13 @@ Methods (the registry, `METHODS`, holds each host method's param schema, result 
   `chain` (hex; null for rows written before the chain), for `provenstream verify`. Both page: at most `limit` (default
   and most `PAGE`) per answer, and `next` is the `from` of the next page, or null at the end;
 - `stream.head {stream_id}`: `{"stream_id", "length", "chain"}`, the stream's current head;
+- `revision.events {revision, event?, from?, limit?}`: a page of the events of every stream of a revision, in the
+  host's append order across streams, each with its `stream_id`, `seq` and `chain` head; with `event` only those of
+  that event name. `from` is the `next` of an earlier answer, a position in the store's event index (store.py), null
+  at the end; a caller keeps it and polls from it, as `stream.events` callers keep the last seq. How a principal finds
+  the events that name it across streams it was never told about: `{"revision": R, "event": "work.asked"}`, then its
+  own id among the `preparer_id`s. The host reads the index, never a stream, and learns no layer's event names or
+  fields. A revision with no engine here is refused `revision_must_be_installed`, as `revision.describe` is;
 - `stream.describe {stream_id}` / `revision.describe {revision}`: the engine's description;
 - `revisions.list`: the revisions this host serves (each a commit and a package) and whether each engine runs now;
 - `usage.get {scope?, key?}`: the usage counters (`engine_ms` is an estimate, `cpu_ms` measured); see `_usage`;
@@ -104,6 +111,10 @@ SEQ = {"type": "integer", "minimum": 0, "description": "a natural number"}
 LIMIT = {"type": "integer", "minimum": 1, "maximum": PAGE, "description": "an integer from 1 to %d" % PAGE}
 REVISION = {"type": "string", "pattern": REVISION_KEY.pattern,
             "description": "a revision: a full commit, and /<package> for a package other than the root"}
+EVENT_NAME = {"type": "string", "pattern": protocol.COMMAND_NAME.pattern,
+              "description": "an event name, e.g. stream.opened"}
+POSITION = {"type": "integer", "minimum": 0, "description": "a position in the host's append order: the `next` of an "
+                                                            "earlier answer (0, the default, from the first event)"}
 
 
 def schema(required: Tuple[str, ...] = (), **properties: dict) -> dict:
@@ -226,6 +237,22 @@ def _revision_describe(c: Call) -> Any:
     return c.host.service.describe(rev)
 
 
+def _revision_events(c: Call) -> Any:
+    """A page of a revision's events across its streams, from the index (store.py), in append order."""
+    rev = c.params["revision"]
+    if rev not in c.host.service.judges:
+        raise _refuse("revision_must_be_installed")
+    after, limit = c.params.get("from", 0), c.params.get("limit", PAGE)
+    rows = c.host.store.find_events(rev, c.params.get("event"), after, limit + 1)
+    page, more = rows[:limit], len(rows) > limit
+    events = []
+    for pos, s, seq, ev, head in page:
+        if head is None:                                      # a row from before the chain: its head computed
+            head = c.host.service.chain_at(s, seq)
+        events.append(dict(wire.loads(ev), stream_id=s, seq=seq, chain=head.hex()))
+    return {"revision": rev, "events": events, "next": page[-1][0] if more else None}
+
+
 def _revisions_list(c: Call) -> Any:
     out = []
     for r, up in sorted(c.host.service.running().items()):
@@ -319,6 +346,11 @@ METHODS: Dict[str, Method] = {m.name: m for m in [
            _stream_describe, result=DESCRIBED),
     Method("revision.describe", QUERY, "the description of a revision this host serves",
            schema(("revision",), revision=REVISION), ANYONE, _revision_describe, result=DESCRIBED),
+    Method("revision.events", QUERY, "a page of the events of every stream of a revision, in the host's append order "
+           "across streams, each with its stream, seq and chain head; of one event name with `event`",
+           schema(("revision",), revision=REVISION, event=EVENT_NAME, **{"from": POSITION, "limit": LIMIT}), ANYONE,
+           _revision_events, result=obj(revision={"type": "string"}, events={"type": "array", "items": obj(
+               stream_id=STREAM, seq=SEQ, event={"type": "string"}, actor_id=UUID, chain=HEX)}, next=NEXT)),
     Method("revisions.list", QUERY, "the revisions this host serves (a commit and a package each), and whether each "
            "engine runs now", NONE, ANYONE, _revisions_list,
            result=obj(revisions={"type": "array", "items": obj(revision={"type": "string"}, commit={"type": "string"},

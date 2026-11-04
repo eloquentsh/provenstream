@@ -298,10 +298,17 @@ A principal is an id and its tokens: no kind, no role, no account. Every proof c
 `actor_id_must_match_the_token` when it names another.
 
 **Reads.** Reading is unrestricted: any authenticated principal reads any stream (no proof says who reads). A read of a
-stream with no rows is refused `stream_must_exist`.
+stream with no rows is refused `stream_must_exist`; `revision.events` on a revision with no engine here is
+`revision_must_be_installed`.
 
 **Paging.** `stream.events` and `stream.rows` answer at most `limit` rows (default and most {page}) from seq `from`
-(default 0), and `next`: the `from` of the next page, or null at the end.
+(default 0), and `next`: the `from` of the next page, or null at the end. `revision.events` pages the same way across
+every stream of a revision, in the host's append order (an event committed later always comes later, whatever its
+stream): its `from` and `next` are positions in that order, not seqs, and a caller stores the last `next` it got and
+polls from it, as a `stream.events` caller keeps the last seq, getting every later event once. `event` narrows a page
+to one event name, so a principal finds the events that name it (`{{"event": "work.asked"}}`, then its own id among
+the `preparer_id`s) without being told which streams exist. The host answers from an index kept beside the events,
+never by reading streams, and knows no layer's event names.
 
 **Revisions.** A revision is a commit and a package path, so one commit serves all its proofs side by side. Its URL:
 `<repo>/commit/<commit>` (or `<repo>#<commit>`, `<repo>@<commit>`) names the repository's root package,

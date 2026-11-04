@@ -3,7 +3,7 @@
 """The streams in one SQLite file: the default store, with the standard library only.
 
 The same tables and the same rules as Postgres (store.py, `PG_SCHEMA`), enforced the same way, by the database: events
-are append-only (triggers refuse UPDATE and DELETE), a principal has at most one live token (a partial unique index). The SQL of the shared methods is the base
+and their index are append-only (triggers refuse UPDATE and DELETE), a principal has at most one live token (a partial unique index). The SQL of the shared methods is the base
 class's; its `%s` placeholders become SQLite's `?` here.
 
 Compare-and-set: each transaction starts with `BEGIN IMMEDIATE`, which takes the file's write lock before the count is
@@ -48,6 +48,16 @@ SQLITE_SCHEMA = [
          scope TEXT NOT NULL, key TEXT NOT NULL, received INTEGER NOT NULL DEFAULT 0, accepted INTEGER NOT NULL DEFAULT 0,
          events INTEGER NOT NULL DEFAULT 0, bytes INTEGER NOT NULL DEFAULT 0, engine_ms INTEGER NOT NULL DEFAULT 0,
          cpu_ms INTEGER NOT NULL DEFAULT 0, last_active TEXT NOT NULL, PRIMARY KEY (scope, key))""",
+    # the event index (store.py's docstring): one row per event at its position in append order (the rowid)
+    """CREATE TABLE IF NOT EXISTS event_index (
+         pos INTEGER PRIMARY KEY, revision TEXT NOT NULL, stream_id TEXT NOT NULL, seq INTEGER NOT NULL,
+         name TEXT NOT NULL, UNIQUE (stream_id, seq))""",
+    "CREATE INDEX IF NOT EXISTS event_index_revision ON event_index (revision, pos)",
+    "CREATE INDEX IF NOT EXISTS event_index_name ON event_index (revision, name, pos)",
+    """CREATE TRIGGER IF NOT EXISTS event_index_append_only_update BEFORE UPDATE ON event_index
+         BEGIN SELECT RAISE(ABORT, 'the event index is append-only'); END""",
+    """CREATE TRIGGER IF NOT EXISTS event_index_append_only_delete BEFORE DELETE ON event_index
+         BEGIN SELECT RAISE(ABORT, 'the event index is append-only'); END""",
 ]
 
 
@@ -80,6 +90,7 @@ class SqliteStore(StreamStore):
     file holds token hashes."""
 
     OCTETS = "length(CAST(%s AS BLOB))"     # octet_length only exists from SQLite 3.43
+    ORDER_OF_APPEND = "e.rowid"             # the events table's rowid is the order rows were appended, exactly
 
     def __init__(self, path: str):
         self.path = path
@@ -103,6 +114,7 @@ class SqliteStore(StreamStore):
             except BaseException:
                 self.conn.execute("ROLLBACK")
                 raise
+            self._backfill_index()
 
     @staticmethod
     def _sql(sql: str) -> str:

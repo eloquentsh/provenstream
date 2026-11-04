@@ -225,3 +225,84 @@ def test_connection_string_forms(dsn, monkeypatch):
             assert s.count() >= 0
         finally:
             s.close()
+
+
+def opened(stream, commit, package="examples/work", actor=None):
+    """A stream.opened event naming the revision `commit/package`."""
+    return {"event": "stream.opened", "stream_id": stream, "actor_id": actor or U("ann"), "meta": None,
+            "proof_revision_url": "https://example.org/repo/tree/%s/%s" % (commit, package)}
+
+
+def test_event_index_follows_appends(store, store_target):
+    """Every append indexes its events in the same transaction, at positions in append order across streams, with the
+    revision from the stream's opening and the event name; a failed compare-and-set indexes nothing; the index is
+    append-only."""
+    c1, c2 = "1" * 40, "2" * 40
+    rev1, rev2 = c1 + "/examples/work", c2 + "/examples/work"
+    s1, s2, s3 = U("s1"), U("s2"), U("s3")
+    ev = lambda s, name, **f: dict({"event": name, "stream_id": s, "actor_id": U("ann"), "meta": "m" * 100}, **f)
+    assert store.append_batch(s1, 0, [({}, opened(s1, c1), "a0")])
+    assert store.append_batch(s2, 0, [({}, opened(s2, c1), "b0")])
+    assert store.append_batch(s3, 0, [({}, opened(s3, c2), "c0")])
+    assert store.append_batch(s1, 1, [({}, ev(s1, "work.asked", preparer_id=U("ben")), "a1"),
+                                      ({}, ev(s1, "work.asked", preparer_id=U("cy")), "a2")])
+    assert store.append_batch(s2, 1, [({}, ev(s2, "work.asked", preparer_id=U("ben")), "b1")])
+    assert not store.append_batch(s2, 1, [({}, ev(s2, "work.asked", preparer_id=U("dee")), "b2")])   # the CAS fails
+    assert store.append_batch(s3, 1, [({}, ev(s3, "work.asked", preparer_id=U("ben")), "c1")])
+    assert store.count() == 7 == store._exec("SELECT count(*) FROM event_index")[0][0]
+    key = lambda rows: [(s, seq) for _, s, seq, _, _ in rows]
+    assert key(store.find_events(rev1)) == [(s1, 0), (s2, 0), (s1, 1), (s1, 2), (s2, 1)]       # append order, rev1 only
+    assert key(store.find_events(rev2)) == [(s3, 0), (s3, 1)]
+    assert key(store.find_events(rev1, name="work.asked")) == [(s1, 1), (s1, 2), (s2, 1)]
+    assert key(store.find_events(rev1, name="stream.opened")) == [(s1, 0), (s2, 0)]
+    assert key(store.find_events(rev1, name="work.replied")) == [] == key(store.find_events("3" * 40))
+    pos = [p for p, *_ in store.find_events(rev1)]
+    assert pos == sorted(pos) and key(store.find_events(rev1, after=pos[1])) == [(s1, 1), (s1, 2), (s2, 1)]
+    assert key(store.find_events(rev1, after=pos[1], limit=2)) == [(s1, 1), (s1, 2)]
+    assert key(store.find_events(rev1, after=pos[-1])) == []
+    assert store.find_events(rev1)[2][3] == store.read(s1)[1][2]                                 # the stored event text
+    for sql in ("UPDATE event_index SET revision = 'x'", "DELETE FROM event_index"):
+        with pytest.raises(refused_by_trigger(store_target)):
+            raw_sql(store_target, sql)
+
+
+def test_event_index_is_backfilled_once_and_moves_with_an_import(store, store_target, tmp_path):
+    """A database from before the index gets one at open, from its stored rows in the order they were appended, and a
+    later open adds nothing; an import indexes the imported rows."""
+    c = "4" * 40
+    rev = c + "/examples/work"
+    s1, s2 = U("s1"), U("s2")
+    ev = lambda s, i: {"event": "x", "stream_id": s, "actor_id": U("ann"), "meta": None, "n": i}
+    store.append_batch(s1, 0, [({}, opened(s1, c), "s1-0")])
+    store.append_batch(s2, 0, [({}, opened(s2, c), "s2-0")])
+    store.append_batch(s1, 1, [({}, ev(s1, 1), "s1-1"), ({}, ev(s1, 2), "s1-2")])
+    store.append_batch(s2, 1, [({}, ev(s2, 9), "s2-1")])
+    before = store.find_events(rev)
+    assert [(s, seq) for _, s, seq, _, _ in before] == [(s1, 0), (s2, 0), (s1, 1), (s1, 2), (s2, 1)]
+    store.close()
+    raw_sql(store_target, "DROP TABLE event_index")
+    again = open_store(store_target)                       # a database from before the index: backfilled at open
+    try:
+        after = again.find_events(rev)
+        same = lambda rows: sorted((s, seq, ev) for _, s, seq, ev, _ in rows)
+        assert same(after) == same(before)
+        if store_target.startswith("sqlite:"):
+            assert after == before                           # SQLite's rowid is the exact order; Postgres orders by
+        else:                                                # the time (to the second), then the stream and seq
+            assert [seq for _, s, seq, _, _ in after if s == s1] == [0, 1, 2]
+        assert again._backfill_index() == 0                 # nothing more to index: idempotent
+        assert again.find_events(rev, name="x")[0][1:3] in ((s1, 1), (s2, 1))
+        out = str(tmp_path / "streams.export")
+        again.export(out)
+    finally:
+        again.close()
+    copy = open_store("sqlite:///:memory:")
+    try:
+        copy.import_export(out)
+        # an export has no positions: the import orders by accepted time, then stream, then seq (here all in one second)
+        got = [(s, seq, ev) for _, s, seq, ev, _ in copy.find_events(rev)]
+        assert sorted(got) == sorted((s, seq, ev) for _, s, seq, ev, _ in before)
+        assert [seq for s, seq, _ in got if s == s2] == [0, 1]
+        assert [seq for s, seq, _ in got if s == s1] == [0, 1, 2]
+    finally:
+        copy.close()
