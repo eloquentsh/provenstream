@@ -1,7 +1,7 @@
 #!/bin/sh
 # Copyright 2026 the Provenstream authors. Licensed under the MIT License. See LICENSE.
 # SPDX-License-Identifier: MIT
-# The host's tests: the six proofs' engines (core, log, principals, tasks, work, tower) built by the real pipeline from one
+# The host's tests: the engines of the proofs with conformance sequences (core, log, principals, tasks, work, tower) built by the real pipeline from one
 # commit of a throwaway copy of this checkout, a throwaway Postgres cluster (scripts/pgtmp.py), then pytest
 # (host/tests/): the environment (build, install, the command line, -h and -h --proof, config, the keyring, the
 # interface check, the store and the service on SQLite and Postgres) and the conformance suite (conformance/, through

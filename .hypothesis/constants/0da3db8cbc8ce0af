@@ -1,0 +1,4 @@
+# file: /Users/philipodonnell/Projects/eloquentsh/provenstream/host/provenstream/wire.py
+# hypothesis_version: 6.141.1
+
+[',', '-inf', ':', 'inf', 'nested too deeply', 'not JSON: ', 'repeated key: %r', 'utf-8']

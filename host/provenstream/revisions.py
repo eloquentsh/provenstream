@@ -7,7 +7,8 @@ A stream is bound for life to the revision its `stream.open` names in `proof_rev
 operation by serving each stream only with the engine built from that revision, and never another.
 
 A revision is a commit (40 or 64 lowercase hex digits) and a package path, so one commit serves all the proofs of its
-repository side by side (the core, examples/log, examples/principals, examples/tasks, examples/work, tests/tower). Its URL, read as
+repository side by side (the core, examples/log, examples/principals, examples/tasks, examples/work,
+examples/solochangecontrol, tests/tower). Its URL, read as
 the core's rule reads it (`validRevisionUrl`, Event.lean):
 
 - `<repo>/commit/<commit>`, `<repo>#<commit>` or `<repo>@<commit>`: the repository's root package;

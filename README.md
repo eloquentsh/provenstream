@@ -3,7 +3,9 @@
 **Event-sourced streams whose rules are proved.** You write the rules of a stream (which commands exist, who may
 issue each, and when) in Lean 4 and prove what they guarantee. Lean compiles those same functions into an engine, and
 a generic host runs many streams, each judged forever by the engine of the proof revision it named when it was opened.
-MIT license.
+MIT license. The site is [provenstream.eloquentanalytics.com](https://provenstream.eloquentanalytics.com), with
+[the work proof walked through](https://provenstream.eloquentanalytics.com/proofs/work/) for a reader who has never
+opened a proof assistant.
 
 ## Why it matters
 
@@ -130,7 +132,7 @@ its position, the core also has a kind **`ref`**: it checks every reference befo
 (`ref_must_name_an_earlier_event`) and proves it points backwards (`ValidX.ref_earlier`) to an event that never
 changes (`ref_target_fixed`), so references cannot form cycles. No example uses it.
 
-The examples, from smallest up (all six are served from one commit, each by its package path):
+The examples, from smallest up (all served from one commit, each by its package path):
 
 | proof | commands, and their events | who may send them | what it proves |
 |---|---|---|---|
@@ -138,6 +140,7 @@ The examples, from smallest up (all six are served from one commit, each by its 
 | `examples/principals` | `principal.invite`, `principal.promote`, `principal.summon` `{stream_id, principal_id, meta?}` → `principal.invited`, `principal.promoted`, `principal.summoned {principal_id}` | an admin; the opener is the first admin, implicitly | admins are the opener and promoted invitees (persons, as this layer's events say), agents are summoned and never promoted, every declaration is made once and is permanent |
 | `examples/tasks` | `task.open {stream_id, task_id, parent_task_id?, meta?}`, `task.assign {stream_id, task_id, assignee_id, meta?}`, `task.complete {stream_id, task_id, meta?}` → `task.opened`, `task.assigned`, `task.completed` | the opener opens and assigns; the assignee completes | every task was opened by the opener (`tasks_opened_by_opener`), every assignee was named by the opener (`assignees_named_by_opener`), a task is completed only by its assignee (`completed_by_assignee`) |
 | `examples/work` | `work.create {stream_id, work_id, meta?}`, `work.assign {stream_id, work_id, assignee_id, meta?}`, `work.ask {stream_id, work_id, preparer_id, meta?}`, `work.reply {stream_id, work_id, meta?}`, `work.complete`, `work.cancel {stream_id, work_id, meta?}` → `work.created`, `work.assigned`, `work.asked`, `work.replied`, `work.completed`, `work.cancelled` | the opener creates and assigns; the assignee asks and decides; the asked reply | a basic task system: nobody creates or assigns work but the opener (`created_by_opener`, `assigned_by_opener`), only the assignee asks for preparations and decides (`asked_by_assignee`, `completed_by_assignee`, `cancelled_by_assignee`), only the asked reply (`replied_by_asked_preparer`), and nothing about an item follows its decision (`decision_final`) |
+| `examples/solochangecontrol` | `change.create {stream_id, change_id, from_revision_url, meta?}`, `change.branch {stream_id, change_id, developer_id, branch_revision_url, meta?}`, `change.push {stream_id, change_id, pushed_revision_url, meta?}`, `change.pull {stream_id, change_id, meta?}`, `change.review {stream_id, change_id, reviewed_revision_url, screen_url, meta?}`, `change.merge {stream_id, change_id, merged_revision_url, meta?}`, `change.abandon {stream_id, change_id, meta?}` → `change.created`, `change.branched`, `change.pushed`, `change.pulled`, `change.reviewed`, `change.merged`, `change.abandoned` | the opener creates, branches, pulls and decides; the branched developers push; anyone else reviews | software changes on one person's repository: the opener hands developers other than itself a branch (`every_branch_is_by_the_opener`), who push (`every_push_is_by_a_branched_developer`); the pull cuts off incoming work (`nothing_is_branched_or_pushed_after_the_pull`); a developer is never a reviewer nor the opener (`roles_are_disjoint`); no revision is named twice on a change (`revisions_are_distinct`); the opener's merge of an undecided change is always accepted (`the_creator_can_always_merge`); nothing about a change follows its decision (`nothing_follows_a_decision`) |
 | `tests/tower` | `review.approve {stream_id, task_id, meta?}` → `review.approved`, on tasks | the opener | a review layer on the tasks layer; its guard refuses `stream.close` while a completed task awaits its review, a guard reaching two levels down |
 
 `examples/log` is one command and one rule in about ten lines of Lean, the first proof to read. `examples/principals`
@@ -634,8 +637,8 @@ provenstream stream verify <stream> --repo .        # builds the stream's own pa
 ```
 
 The engine built above is the `examples/tasks` layer on the core, so its streams have the core's two commands plus
-`task.open`, `task.assign` and `task.complete`. A revision is a commit and a package path, so one commit's six proofs
-(core, log, principals, tasks, work, tower) are six revisions, served side by side: `engine install` puts each engine in
+`task.open`, `task.assign` and `task.complete`. A revision is a commit and a package path, so each proof of one commit
+(the core, every example, the tower) is a revision of its own, served side by side: `engine install` puts each engine in
 `engines/<commit>/<package or _root>/`, listed in `engines/revisions.json` under its revision (`<commit>` for the root
 package, `<commit>/<package>` for another).
 
@@ -663,7 +666,8 @@ the core, `examples/log`, `examples/principals`, `examples/tasks`, `examples/wor
 every answer, refusal reason, event, seq and chain head. `provenstream conform` runs them on the three carriers (in
 process, `serve --stdio` and `serve` over HTTP) in parallel, on SQLite and on Postgres, and with `--compare` checks
 that every carrier answered with the same bytes: 8304 cases on each carrier, 8064 of them in 515 command sequences on
-the six proofs. `--db` names the store (a Postgres connection string, as `scripts/pgtmp.py` makes for a throwaway
+those proofs; `examples/solochangecontrol` has no sequences and no corpus session yet, so `conform` does not serve it.
+`--db` names the store (a Postgres connection string, as `scripts/pgtmp.py` makes for a throwaway
 cluster, or a SQLite path); the run adds streams and principals to it. Pytest (`host/tests/`) covers only the
 environment: building, installing, the command line, configuration, the keyring and the interface check. A behaviour a
 sequence can show is shown by a sequence.
@@ -700,6 +704,7 @@ Start from `examples/log`: one command, one rule (`v.opener == some actor`) and 
 | `examples/principals/` | persons, admins and agents as a layer: `principal.invite`, `principal.promote`, `principal.summon` |
 | `examples/tasks/` | tasks the opener opens and assigns and the assignee completes, with an optional `parent_task_id` |
 | `examples/work/` | a basic task system: the opener creates and assigns an item, the assignee asks preparers, who reply, and completes or cancels it |
+| `examples/solochangecontrol/` | software changes on one person's repository: the opener branches a change to developers, who push; reviewers publish a screen and their own revision; the pull cuts off incoming work; the opener merges or abandons; every revision named on a change is unique |
 | `tests/tower/`, `tests/proof-negative/`, `tests/not-the-interface/` | reviews on tasks, a layer on a layer; proofs that must fail to build; proofs that must fail the source check |
 | `corpus/` | recorded engine sessions, replayed byte for byte; the stream interface |
 | `conformance/` | the main suite: command sequences and their outcomes, on any carrier or a host at a URL |

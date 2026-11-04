@@ -52,7 +52,7 @@ PROOF_RULES = {
 
 
 def test_every_answer_code_and_reason_is_asked_for():
-    """Every code of the answer table, every reason the host gives a caller and every rule of the six proofs a host
+    """Every code of the answer table, every reason the host gives a caller and every rule of the proofs with sequences a host
     can be brought to (all but the two the host never lets a caller reach, since it mints every fresh id: a stream id
     taken, and the wrong count of minted ids), each by at least one case; and every proof theme is command sequences."""
     codes, reasons = set(), set()

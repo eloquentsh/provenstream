@@ -1,0 +1,17 @@
+{
+  "name": "solochangecontrol",
+  "engine": "solochangecontrol-engine",
+  "namespaces": [
+    "SoloChangeControl"
+  ],
+  "layer_modules": [
+    "SoloChangeControl/Layer.lean",
+    "SoloChangeControl/Theorems.lean",
+    "SoloChangeControl/Examples.lean"
+  ],
+  "audit_roots": [
+    "SoloChangeControl.solo"
+  ],
+  "revision_module": "SoloChangeControlRevision.lean",
+  "revision_def": "SoloChangeControl.built"
+}

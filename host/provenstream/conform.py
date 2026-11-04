@@ -8,7 +8,7 @@ ones. What a pattern means is conformance/README.md's; in short, a JSON value is
 arrays in order, `1` is not `1.0` or `true`), and a string starting with `$` is a pattern: `$uuid`, `$hex64`,
 `$string`, `$int`, `$bool`, `$any` match a shape; `$SHAPE:NAME` matches the shape and binds the value to NAME; `$NAME`
 must equal what NAME was bound to. Bound before the first case: the role principals (`$opener`, `$other`, `$third`,
-`$outsider`), `$commit`, `$repo`, `$run` (a nonce of the run), and for each of the six proofs served (`core`, `log`,
+`$outsider`), `$commit`, `$repo`, `$run` (a nonce of the run), and for each proof served (`core`, `log`,
 `principals`, `tasks`, `work`, `tower`) its revision `$rev_P` and URL `$url_P`; against a host this runner made, also `$spare`
 (whose token `token.rotate` rotates), `$broken`/`$broken_url` (a revision whose engine is missing) and
 `$notiface`/`$notiface_url` (one whose engine does not implement the stream interface). An object with `"$open": true`
@@ -19,7 +19,7 @@ needs that proof (or each of a list) served, and is skipped otherwise; a case wi
 `stream.rows` answer whose hash chain the runner also recomputes from the rows (chain.py), from the genesis on.
 
 Targets. A local target is a throwaway host on a store of the run (a fresh SQLite file in a temporary directory, or the
-database `--db` names: Postgres too), serving the six proofs' engines of one commit (from `--engines DIR`, else built
+database `--db` names: Postgres too), serving the engines of the proofs in `PROOFS` from one commit (from `--engines DIR`, else built
 from this checkout's HEAD, which takes a while), a revision `BROKEN` whose engine is missing, so that `unavailable` can
 be brought about, and a revision `NOTIFACE` whose engine (a small script the runner writes) describes itself as no
 engine of the stream interface. The runner issues the role principals itself, through the operator path
@@ -66,7 +66,7 @@ UNKNOWN_TOKEN = "ps_conformance-unknown-token"
 BROKEN = "bad" * 13 + "b"                       # a revision whose engine is missing (local targets only)
 NOTIFACE = "0bad" * 10                          # a revision whose engine is not the stream interface (local only)
 PROOFS = {"core": "", "log": "examples/log", "principals": "examples/principals", "tasks": "examples/tasks",
-          "work": "examples/work", "tower": "tests/tower"}   # the six proofs, by their package path in one commit
+          "work": "examples/work", "tower": "tests/tower"}   # the proofs with conformance sequences, by package path in one commit
 CASE_KEYS = {"id", "who", "method", "params", "rid", "raw", "raw_base64", "oversize", "answer_id", "expect",
              "local_only", "proof", "check"}
 
@@ -314,7 +314,7 @@ def _cli() -> List[str]:
 
 
 class Fixture:
-    """A throwaway host's state: a temporary directory holding an engines directory (the six proofs of one commit, the
+    """A throwaway host's state: a temporary directory holding an engines directory (the engines of the proofs in PROOFS, of one commit, the
     broken revision and the one not of the interface) and, unless `db` names one, a SQLite store. The role principals
     are issued per run, through the operator path (`local_run`)."""
 
@@ -362,7 +362,7 @@ class Fixture:
         if not (os.path.isdir(os.path.join(CHECKOUT, ".git")) and
                 os.path.exists(os.path.join(CHECKOUT, "lakefile.toml"))):
             raise SetupError("no checkout to build the engines from: pass --engines DIR")
-        say("conform: building the six proofs' engines at HEAD (pass --engines DIR to use some already built)")
+        say("conform: building the proofs' engines at HEAD (pass --engines DIR to use some already built)")
         edir = os.path.join(self.tmp, "built")
         try:
             for proof, package in PROOFS.items():
@@ -811,7 +811,7 @@ def add_arguments(s: argparse.ArgumentParser) -> None:
     s.add_argument("--revision-url", help="--base-url: the proof URL of the core revision the host serves (its "
                                           "commit's other proofs are used where the host serves them)")
     s.add_argument("--engines", default=argparse.SUPPRESS,
-                   help="local targets: an engines directory holding the six proofs' engines of one commit (default: "
+                   help="local targets: an engines directory holding the engines of the proofs with sequences, of one commit (default: "
                         "PROVENSTREAM_ENGINES, else built from this checkout's HEAD)")
     s.add_argument("--revision", help="local targets: the commit whose proofs to serve from --engines (default: the "
                                       "one that serves the core and the most of the others)")

@@ -10,7 +10,7 @@ A **revision** is a commit and a package path, so one commit serves all its proo
 `<repo>/commit/<commit>` (or `<repo>#<commit>`, `<repo>@<commit>`) for the repository's root package,
 `<repo>/tree/<commit>/<package>` for another (`<commit>`: 40 or 64 lowercase hex digits; `<package>`: `/`-separated
 segments of `[A-Za-z0-9._-]`, none empty, `.` or `..`). Its key, everywhere the host names it, is `<commit>` for the
-root package and `<commit>/<package>` for another. One commit of this repository is six revisions:
+root package and `<commit>/<package>` for another. One commit of this repository is a revision per proof:
 
 | proof | revision key | URL |
 |---|---|---|
@@ -19,6 +19,7 @@ root package and `<commit>/<package>` for another. One commit of this repository
 | `examples/principals` | `<commit>/examples/principals` | `<repo>/tree/<commit>/examples/principals` |
 | `examples/tasks` | `<commit>/examples/tasks` | `<repo>/tree/<commit>/examples/tasks` |
 | `examples/work` | `<commit>/examples/work` | `<repo>/tree/<commit>/examples/work` |
+| `examples/solochangecontrol` | `<commit>/examples/solochangecontrol` | `<repo>/tree/<commit>/examples/solochangecontrol` |
 | the tower | `<commit>/tests/tower` | `<repo>/tree/<commit>/tests/tower` |
 
 - **Build**: `provenstream engine build --repo R --commit C --out B [--package P]` takes the commit's files only

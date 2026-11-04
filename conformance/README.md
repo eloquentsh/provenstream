@@ -1,8 +1,8 @@
 # Conformance
 
 This is Provenstream's main suite. It is many command sequences, valid and invalid, sent to a host through any
-carrier, across the six proofs one commit serves: the core, `examples/log`, `examples/principals`, `examples/tasks`,
-`examples/work` and the tower (`tests/tower`). Each one comes with its validated outcome: every answer, every refusal and the rule it
+carrier, across the proofs of one commit that have sequences: the core, `examples/log`, `examples/principals`, `examples/tasks`,
+`examples/work` and the tower (`tests/tower`); `examples/solochangecontrol` has none yet. Each one comes with its validated outcome: every answer, every refusal and the rule it
 names, every event at its seq, and every chain head, read back and recomputed. It also covers the host's own
 interface: authentication, parsing, reads, paging, idempotency, `actor_id`, discovery, `principal.create` and the
 host's refusals.
@@ -28,7 +28,7 @@ provenstream conform --engines engines --compare --db "$(python3 scripts/pgtmp.p
 ```
 
 A local target is a host the runner makes in a temporary directory. It uses a store (a fresh SQLite file, or the
-database `--db` names, Postgres included; the run adds streams and principals to it). It serves the six proofs'
+database `--db` names, Postgres included; the run adds streams and principals to it). It serves those proofs'
 engines of one commit, from `--engines DIR` (the commit there that serves the core and most of the others, or
 `--revision COMMIT`). Without `--engines` it builds them from this checkout's HEAD. It also serves two revisions that
 make the host's failures happen: one whose engine is missing (`unavailable`), and one whose engine, a small script the

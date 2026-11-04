@@ -1,0 +1,4 @@
+# file: /Users/philipodonnell/Projects/eloquentsh/provenstream/host/provenstream/engine.py
+# hypothesis_version: 6.141.1
+
+[b'\n', b'{"query":"describe"}', b'{"query":"revision"}', 0.0, 0.01, 5.0, 30.0, 120.0, 200, 2000, 86400, ' | ', ')', ',', '-', '-o', '-p', '/', '/proc/%d/stat', '1', ':', 'LEAN_ABORT_ON_PANIC', 'PATH', 'SC_CLK_TCK', '_err_thread', 'accept', 'at', 'checked', 'commands', 'detail', 'dropped', 'engine not running', 'error', 'event', 'k', 'length', 'load', 'loaded', 'malformed', 'out_of_sync', 'package', 'ps', 'ready', 'reason', 'refused', 'replace', 'revision', 'schema', 'snapshot', 'state', 'stream %s: %r', 'stream_id', 'synced', 'time=', 'utf-8', '{"drop":%s}']

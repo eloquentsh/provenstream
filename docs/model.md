@@ -3,7 +3,7 @@
 Lean 4 (v4.35.0), core library only: no Mathlib, no `import Lean` on the verified path. The one import beyond `Init` is
 `Std.Data.HashMap` from the toolchain's own Std, used by the unproved engine edge (`Provenstream/Engine/Step.lean`, its
 cache), not by anything verified. Sources in `Provenstream/` (the core), `examples/log`, `examples/principals`,
-`examples/tasks`, `examples/work` and `tests/tower` (layers on it).
+`examples/tasks`, `examples/work`, `examples/solochangecontrol` and `tests/tower` (layers on it).
 
 ## Events, commands, requests
 
@@ -196,6 +196,43 @@ assignee). Completion needs no reply.
 | `created_once`, `item_created`, `assigned_once`, `asked_once`, `replied_once`, `decided_once` | each step once, and on a created item |
 | `decision_final` | after an item is completed or cancelled, no work event about it is accepted (`no_event_once_decided`, `decision_admitted`) |
 | `work_close_by_opener`, `work_close_final` | the core's, inherited |
+
+### `examples/solochangecontrol`
+
+Software changes on one person's repository, on the core directly. The opener creates a change and decides it; the
+revision fields are `url` text (`validUrl`: a scheme, `://`, no whitespace or control character, at most 2048
+characters), compared as strings. What a URL points at, and whether a pushed revision descends from the branch it was
+handed, is the harness's check, not the proof's.
+
+| command | event | rules |
+|---|---|---|
+| `change.create {stream_id, change_id, from_revision_url, meta?}` | `change.created` | `only_opener_can_create`, `change_id_must_be_new` |
+| `change.branch {stream_id, change_id, developer_id, branch_revision_url, meta?}` | `change.branched` | `change_must_exist`, `revisions_must_be_unique`, `only_opener_can_branch`, `developer_must_not_be_the_opener`, `developer_is_branched_once`, `developer_must_not_be_a_reviewer`, `change_must_not_be_pulled`, `change_must_be_undecided` |
+| `change.push {stream_id, change_id, pushed_revision_url, meta?}` | `change.pushed` | `change_must_exist`, `revisions_must_be_unique`, `change_must_not_be_pulled`, `only_branched_developers_can_push`, `change_must_be_undecided` |
+| `change.pull {stream_id, change_id, meta?}` | `change.pulled` | `change_must_exist`, `only_opener_can_pull`, `change_is_pulled_once`, `change_must_be_undecided` |
+| `change.review {stream_id, change_id, reviewed_revision_url, screen_url, meta?}` | `change.reviewed` | `change_must_exist`, `revisions_must_be_unique`, `reviewer_must_not_be_a_developer`, `reviewer_must_not_be_the_opener`, `change_must_be_undecided` |
+| `change.merge {stream_id, change_id, merged_revision_url, meta?}` | `change.merged` | `change_must_exist`, `revisions_must_be_unique`, `only_opener_can_decide`, `change_is_decided_once` |
+| `change.abandon {stream_id, change_id, meta?}` | `change.abandoned` | `change_must_exist`, `only_opener_can_decide`, `change_is_decided_once` |
+
+A change is decided when it is merged or abandoned. The pull cuts off branches and pushes and is a prerequisite of
+nothing: the opener may merge or abandon, and a reviewer may review, with or without it. Review is optional and
+repeatable, by anyone who is neither a developer of the change nor the opener, and a reviewer is never afterwards
+branched. Every revision named on a change (its starting revision, each branch revision, every pushed, reviewed and
+merged revision) is unique on that change, so each role leaves its own revision. Commands are intent: `merged` is
+final whether or not the merge in git succeeds, and a continuation is a fresh change. The theorems are named as the
+sentence each proves.
+
+| theorem | statement |
+|---|---|
+| `every_change_is_created_by_the_opener`, `every_branch_is_by_the_opener`, `the_pull_is_by_the_opener`, `the_merge_is_by_the_opener`, `the_abandon_is_by_the_opener` | the opener creates, branches, pulls and decides |
+| `every_push_is_by_a_branched_developer` | every push is by a developer the opener branched |
+| `roles_are_disjoint` (`no_developer_is_the_opener`, `no_developer_is_a_reviewer`, `no_reviewer_is_the_opener`) | a developer of a change is neither the opener nor ever a reviewer of it, in either order; a reviewer is not the opener |
+| `revisions_are_distinct` (`the_merged_revision_is_none_of_the_others`, `no_reviewed_revision_is_a_developers`, `no_pushed_revision_is_the_branch_revision`) | no two events of a change name the same revision |
+| `a_change_is_created_once`, `every_event_names_a_created_change`, `a_developer_is_branched_once`, `a_change_is_pulled_once`, `a_change_is_decided_once` | each step once, and on a created change |
+| `nothing_is_branched_or_pushed_after_the_pull` | after the pull, no branch or push of the change is accepted |
+| `nothing_follows_a_decision` | after a change is merged or abandoned, no change event about it is accepted (`no_event_once_decided`, `decision_admitted`) |
+| `the_creator_can_always_merge` | a theorem of acceptance (`Service.respond_accepted_iff`, `Layer.ValidX.snoc_inr_iff`): after any valid log in which the stream is open with opener `a`, the change exists and is undecided, and the revision is not yet named on it, the service accepts `a`'s merge, whatever else has or has not happened |
+| `only_the_opener_closes_the_stream`, `nothing_follows_a_close` | the core's, inherited |
 
 ### The tower (`tests/tower`)
 

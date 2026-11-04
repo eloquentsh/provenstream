@@ -1,6 +1,6 @@
 # Copyright 2026 the Provenstream authors. Licensed under the MIT License. See LICENSE.
 # SPDX-License-Identifier: MIT
-"""Fixtures: a throwaway Postgres cluster (scripts/pgtmp.py), and the six proofs' engines built by the real pipeline
+"""Fixtures: a throwaway Postgres cluster (scripts/pgtmp.py), and the engines of the proofs with conformance sequences, built by the real pipeline
 (`provenstream.build`) from one commit of a throwaway git repository holding this checkout's files: the core, the log,
 the principals, the tasks, the work and the tower, each a revision of that commit (its package path).
 
