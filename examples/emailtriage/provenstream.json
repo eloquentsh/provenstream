@@ -1,0 +1,17 @@
+{
+  "name": "emailtriage",
+  "engine": "emailtriage-engine",
+  "namespaces": [
+    "EmailTriage"
+  ],
+  "layer_modules": [
+    "EmailTriage/Layer.lean",
+    "EmailTriage/Theorems.lean",
+    "EmailTriage/Examples.lean"
+  ],
+  "audit_roots": [
+    "EmailTriage.inbound"
+  ],
+  "revision_module": "EmailTriageRevision.lean",
+  "revision_def": "EmailTriage.built"
+}

@@ -1,0 +1,17 @@
+{
+  "name": "email",
+  "engine": "email-engine",
+  "namespaces": [
+    "Email"
+  ],
+  "layer_modules": [
+    "Email/Layer.lean",
+    "Email/Theorems.lean",
+    "Email/Examples.lean"
+  ],
+  "audit_roots": [
+    "Email.outbound"
+  ],
+  "revision_module": "EmailRevision.lean",
+  "revision_def": "Email.built"
+}

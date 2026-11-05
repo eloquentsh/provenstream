@@ -3,7 +3,8 @@
 Lean 4 (v4.35.0), core library only: no Mathlib, no `import Lean` on the verified path. The one import beyond `Init` is
 `Std.Data.HashMap` from the toolchain's own Std, used by the unproved engine edge (`Provenstream/Engine/Step.lean`, its
 cache), not by anything verified. Sources in `Provenstream/` (the core), `examples/log`, `examples/principals`,
-`examples/tasks`, `examples/work`, `examples/solochangecontrol` and `tests/tower` (layers on it).
+`examples/tasks`, `examples/work`, `examples/solochangecontrol`, `examples/email`, `examples/emailtriage` and
+`tests/tower` (layers on it).
 
 ## Events, commands, requests
 
@@ -232,6 +233,68 @@ sentence each proves.
 | `nothing_is_branched_or_pushed_after_the_pull` | after the pull, no branch or push of the change is accepted |
 | `nothing_follows_a_decision` | after a change is merged or abandoned, no change event about it is accepted (`no_event_once_decided`, `decision_admitted`) |
 | `the_creator_can_always_merge` | a theorem of acceptance (`Service.respond_accepted_iff`, `Layer.ValidX.snoc_inr_iff`): after any valid log in which the stream is open with opener `a`, the change exists and is undecided, and the revision is not yet named on it, the service accepts `a`'s merge, whatever else has or has not happened |
+| `only_the_opener_closes_the_stream`, `nothing_follows_a_close` | the core's, inherited |
+
+### `examples/email`
+
+Outgoing email one person sends, on the core directly. The opener creates an email and decides it. The fields naming a
+message are `eml` text (`validEml`: a `validUrl` ending in `.eml`), compared as strings. `in_reply_to_url` has kind
+`eml?`: the message replied to, or absent or null for a new message. What a URL points at is the harness's check, not
+the proof's.
+
+| command | event | rules |
+|---|---|---|
+| `email.create {stream_id, email_id, in_reply_to_url?, meta?}` | `email.created` | `only_opener_can_create`, `email_id_must_be_new` |
+| `email.solicit {stream_id, email_id, drafter_id, meta?}` | `email.solicited` | `email_must_exist`, `only_opener_can_solicit`, `drafter_must_not_be_the_opener`, `drafter_is_solicited_once`, `drafter_must_not_be_a_composer`, `email_must_not_be_composed`, `email_must_be_undecided` |
+| `email.draft {stream_id, email_id, draft_url, meta?}` | `email.drafted` | `email_must_exist`, `eml_urls_must_be_unique`, `email_must_not_be_composed`, `only_solicited_drafters_can_draft`, `email_must_be_undecided` |
+| `email.compose {stream_id, email_id, composed_url, screen_url, meta?}` | `email.composed` | `email_must_exist`, `eml_urls_must_be_unique`, `composer_must_not_be_a_drafter`, `composer_must_not_be_the_opener`, `email_must_be_undecided` |
+| `email.send {stream_id, email_id, sent_url, meta?}` | `email.sent` | `email_must_exist`, `eml_urls_must_be_unique`, `only_opener_can_decide`, `email_is_decided_once` |
+| `email.discard {stream_id, email_id, meta?}` | `email.discarded` | `email_must_exist`, `only_opener_can_decide`, `email_is_decided_once` |
+
+An email is decided when it is sent or discarded. The first composed draft ends solicitations and drafts. A composer may
+compose again until the decision. Every `.eml` named on an email is unique on that email. Commands are intent: `sent` is
+final whether or not the message is delivered. The theorems are named as the sentence each proves.
+
+| theorem | statement |
+|---|---|
+| `every_email_is_created_by_the_opener`, `every_solicitation_is_by_the_opener`, `the_send_is_by_the_opener`, `the_discard_is_by_the_opener` | the opener creates, solicits and decides |
+| `every_draft_is_by_a_solicited_drafter` | every draft is by a drafter the opener solicited |
+| `roles_are_disjoint` (`no_drafter_is_the_opener`, `no_drafter_is_a_composer`, `no_composer_is_the_opener`) | a drafter of an email is neither the opener nor ever a composer of it, in either order; a composer is not the opener |
+| `emls_are_distinct` (`the_sent_message_is_none_of_the_others`, `no_composed_draft_is_a_drafters`, `no_draft_is_the_message_replied_to`) | no two events of an email name the same `.eml` |
+| `an_email_is_created_once`, `every_event_names_a_created_email`, `a_drafter_is_solicited_once`, `an_email_is_decided_once` | each step once, and on a created email |
+| `nothing_is_solicited_or_drafted_after_the_compose` | after a compose, no solicitation or draft of the email is accepted |
+| `nothing_follows_a_decision` | after an email is sent or discarded, no email event about it is accepted |
+| `the_creator_can_always_send` | a theorem of acceptance: after any valid log in which the stream is open with opener `a`, the email exists and is undecided, and the `.eml` is not yet named on it, the service accepts `a`'s send |
+| `only_the_opener_closes_the_stream`, `nothing_follows_a_close` | the core's, inherited |
+
+### `examples/emailtriage`
+
+What to do with a message that arrived, on the core directly. The opener records the message and decides the triage.
+`message_url` is `eml` text, as in `examples/email`. `verdict` is `verdict` text (`validVerdict`: exactly `reply` or
+`ignore`).
+
+| command | event | rules |
+|---|---|---|
+| `triage.create {stream_id, triage_id, message_url, meta?}` | `triage.created` | `only_opener_can_create`, `triage_id_must_be_new` |
+| `triage.ask {stream_id, triage_id, adviser_id, meta?}` | `triage.asked` | `triage_must_exist`, `only_opener_can_ask`, `adviser_must_not_be_the_opener`, `adviser_is_asked_once`, `adviser_must_not_be_a_reviewer`, `triage_must_not_be_reviewed`, `triage_must_be_undecided` |
+| `triage.advise {stream_id, triage_id, verdict, meta?}` | `triage.advised` | `triage_must_exist`, `triage_must_not_be_reviewed`, `only_asked_advisers_can_advise`, `adviser_advises_once`, `triage_must_be_undecided` |
+| `triage.review {stream_id, triage_id, verdict, meta?}` | `triage.reviewed` | `triage_must_exist`, `reviewer_must_not_be_an_adviser`, `reviewer_must_not_be_the_opener`, `triage_must_be_undecided` |
+| `triage.reply {stream_id, triage_id, email_id, meta?}` | `triage.replied` | `triage_must_exist`, `only_opener_can_decide`, `triage_is_decided_once` |
+| `triage.ignore {stream_id, triage_id, meta?}` | `triage.ignored` | `triage_must_exist`, `only_opener_can_decide`, `triage_is_decided_once` |
+
+A triage is decided when it is replied to or ignored. The first review ends asks and advice. A reviewer may review again
+until the decision. The proof does not hold the opener to the reviewer's verdict. `email_id` names an email on a stream
+of `examples/email`, and this layer does not check it. `replied` means a reply was begun, not sent.
+
+| theorem | statement |
+|---|---|
+| `every_triage_is_created_by_the_opener`, `every_ask_is_by_the_opener`, `the_reply_is_by_the_opener`, `the_ignore_is_by_the_opener` | the opener creates, asks and decides |
+| `every_advice_is_by_an_asked_adviser`, `an_adviser_advises_once` | every advice is by an adviser the opener asked, once |
+| `roles_are_disjoint` (`no_adviser_is_the_opener`, `no_adviser_is_a_reviewer`, `no_reviewer_is_the_opener`) | an adviser of a triage is neither the opener nor ever a reviewer of it, in either order; a reviewer is not the opener |
+| `a_triage_is_created_once`, `every_event_names_a_created_triage`, `an_adviser_is_asked_once`, `a_triage_is_decided_once` | each step once, and on a created triage |
+| `nothing_is_asked_or_advised_after_the_review` | after a review, no ask or advice on the triage is accepted |
+| `nothing_follows_a_decision` | after a triage is replied to or ignored, no triage event about it is accepted |
+| `the_creator_can_always_ignore` | a theorem of acceptance: after any valid log in which the stream is open with opener `a` and the triage exists and is undecided, the service accepts `a`'s ignore |
 | `only_the_opener_closes_the_stream`, `nothing_follows_a_close` | the core's, inherited |
 
 ### The tower (`tests/tower`)
