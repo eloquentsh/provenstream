@@ -27,6 +27,7 @@ CONSTRUCTORS = {
     "advise": ("triage.advise", ["stream_id", "triage_id", "verdict"]),
     "review": ("triage.review", ["stream_id", "triage_id", "verdict"]),
     "reply": ("triage.reply", ["stream_id", "triage_id", "email_id"]),
+    "work": ("triage.work", ["stream_id", "triage_id", "work_id"]),
     "ignore": ("triage.ignore", ["stream_id", "triage_id"]),
     "streamOpen": ("stream.open", ["proof_revision_url"]),
     "streamClose": ("stream.close", ["stream_id"]),

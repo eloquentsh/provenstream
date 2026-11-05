@@ -9,7 +9,7 @@ Each holds of every valid log of the layer (`ValidX`), and follows from the rule
 accepted (`ValidX.holdsNamed`), from the core's opener (`v.opener`), and from the core's theorems through `h.cores`.
 Named as the sentence each proves. Every permission rests on the opener: the opener creates, asks and decides
 (`every_triage_is_created_by_the_opener`, `every_ask_is_by_the_opener`, `the_reply_is_by_the_opener`,
-`the_ignore_is_by_the_opener`); the advisers are whom the opener asked (`every_advice_is_by_an_asked_adviser`), and
+`the_work_is_by_the_opener`, `the_ignore_is_by_the_opener`); the advisers are whom the opener asked (`every_advice_is_by_an_asked_adviser`), and
 each advises once (`an_adviser_advises_once`); the three roles never meet (`roles_are_disjoint`); the first review
 cuts off asks and advice (`nothing_is_asked_or_advised_after_the_review`); nothing about a triage follows its decision
 (`nothing_follows_a_decision`). And one theorem of acceptance rather than of valid logs: the opener's ignore of an
@@ -124,6 +124,12 @@ theorem the_reply_is_by_the_opener {pre post : inbound.XLog} {a t k e : Id} {m :
   dsimp only at this
   simpa using this
 
+theorem the_work_is_by_the_opener {pre post : inbound.XLog} {a t k i : Id} {m : Meta}
+    (h : ValidX (pre ++ .inr (.worked a t k i m) :: post)) : Past.opener (cores pre) t = some a := by
+  have := h.holdsNamed "only_opener_can_decide"
+  dsimp only at this
+  simpa using this
+
 theorem the_ignore_is_by_the_opener {pre post : inbound.XLog} {a t k : Id} {m : Meta}
     (h : ValidX (pre ++ .inr (.ignored a t k m) :: post)) : Past.opener (cores pre) t = some a := by
   have := h.holdsNamed "only_opener_can_decide"
@@ -187,7 +193,7 @@ theorem a_triage_is_created_once {pre post : inbound.XLog} {a t k : Id} {u : Str
 
 def item : TriageEvent → Id
   | .created _ _ k _ _ | .asked _ _ k _ _ | .advised _ _ k _ _ | .reviewed _ _ k _ _ | .replied _ _ k _ _
-  | .ignored _ _ k _ => k
+  | .worked _ _ k _ _ | .ignored _ _ k _ => k
 
 theorem every_event_names_a_created_triage {pre post : inbound.XLog} {x : TriageEvent} {t : Id}
     (h : ValidX (pre ++ .inr x :: post)) (hs : inbound.evStream x = t)
@@ -252,7 +258,7 @@ theorem nothing_is_asked_or_advised_after_the_review {pre mid post : inbound.XLo
 /-! ## A decision is final -/
 
 def decides : TriageEvent → Bool
-  | .replied .. | .ignored .. => true
+  | .replied .. | .worked .. | .ignored .. => true
   | _ => false
 
 theorem decided_of_decides {d : TriageEvent} (hd : decides d = true) {w1 w2 : List Note} :
@@ -278,6 +284,10 @@ theorem no_event_once_decided {pre post : inbound.XLog} {x : TriageEvent}
     have := h.holdsNamed "triage_is_decided_once"
     dsimp only at this
     simp_all [item]
+  | worked a t k i m =>
+    have := h.holdsNamed "triage_is_decided_once"
+    dsimp only at this
+    simp_all [item]
   | ignored a t k m =>
     have := h.holdsNamed "triage_is_decided_once"
     dsimp only at this
@@ -295,7 +305,7 @@ theorem decision_admitted {pre post : inbound.XLog} {d : TriageEvent} (hd : deci
   simp only [read_notes] at h3
   cases d <;> simp only [decides, Bool.false_eq_true] at hd <;> simpa [item] using h3
 
-/-- **Nothing follows a decision**: after a triage is replied or ignored, no triage event about it is accepted. -/
+/-- **Nothing follows a decision**: after a triage is replied, made a work item, or ignored, no triage event about it is accepted. -/
 theorem nothing_follows_a_decision {pre mid post : inbound.XLog} {d x : TriageEvent} (hd : decides d = true)
     (h : ValidX (pre ++ .inr d :: mid ++ .inr x :: post))
     (hs : inbound.evStream x = inbound.evStream d) (hk : item x = item d) : False := by

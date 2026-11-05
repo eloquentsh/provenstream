@@ -39,6 +39,7 @@ S, T = U("stream-s"), U("stream-t")
 STREAMS = [S, T]
 TRIAGES = [U("triage-%d" % i) for i in range(4)]
 EMAILS = [U("email-%d" % i) for i in range(4)]
+WORK_ITEMS = ["80000000-0000-7000-8000-00000000000%d" % i for i in range(1, 4)]
 PROOF_URL = M.PROOF_URL
 GOOD_EMLS = ["eloquentmail://personal/m%d.eml" % i for i in range(6)]
 BAD_EMLS = ["", "no-scheme.eml", "https://", "://host.eml", "https://a b/c.eml", "a://b://c.eml", "eloquentmail://personal/m1", "eloquentmail://personal/m1.EML"]
@@ -80,7 +81,7 @@ def _report():
 
 principals = st.sampled_from(PRINCIPALS)
 triages = st.sampled_from(TRIAGES)
-verdicts = st.sampled_from(["reply", "ignore"])
+verdicts = st.sampled_from(["reply", "work", "ignore"])
 metas = st.one_of(st.none(), st.text(alphabet=st.characters(min_codepoint=32, max_codepoint=0x7e), max_size=12))
 
 
@@ -365,6 +366,18 @@ class TriageMachine(RuleBasedStateMachine):
         self.send(actor, self.mangle(data, self.with_meta(data, f)))
 
     @rule(data=st.data())
+    def work(self, data):
+        sid = self.pick_stream(data)
+        stream = self.streams[sid]
+        actor = self.pick_actor(data, stream, "opener")
+        k = self.pick_triage(data, stream, prefer_undecided=False)
+        hold = 5 if self.life(stream, k) < 6 else 1
+        if data.draw(st.sampled_from([True] * hold + [False])):
+            return
+        f = {"command": "triage.work", "stream_id": sid, "triage_id": k, "work_id": data.draw(st.sampled_from(WORK_ITEMS))}
+        self.send(actor, self.mangle(data, self.with_meta(data, f)))
+
+    @rule(data=st.data())
     def ignore(self, data):
         sid = self.pick_stream(data)
         stream = self.streams[sid]
@@ -483,6 +496,8 @@ class TriageMachine(RuleBasedStateMachine):
             f["verdict"] = data.draw(verdicts)
         if cmd == "triage.reply":
             f["email_id"] = data.draw(st.sampled_from(EMAILS))
+        if cmd == "triage.work":
+            f["work_id"] = data.draw(st.sampled_from(WORK_ITEMS))
         return f
 
     def aim(self, data, cmd, reason):
@@ -758,8 +773,8 @@ class TriageMachine(RuleBasedStateMachine):
                     self.check(e["verdict"] in M.VERDICTS, "a verdict")
                     reviewers.setdefault(k, set()).add(r)
                     reviewed.add(k)
-                elif name in ("triage.replied", "triage.ignored"):
-                    self.check(e["actor_id"] == opener, "the_reply_is_by_the_opener / the_ignore_is_by_the_opener")
+                elif name in ("triage.replied", "triage.worked", "triage.ignored"):
+                    self.check(e["actor_id"] == opener, "the_reply_is_by_the_opener / the_work_is_by_the_opener / the_ignore_is_by_the_opener")
                     self.check(k not in decided, "a_triage_is_decided_once")
                     decided.add(k)
                 else:

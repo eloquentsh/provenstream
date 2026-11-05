@@ -23,14 +23,18 @@ def S : Id := "50000000-0000-7000-8000-000000000001"
 def K1 : Id := "60000000-0000-7000-8000-000000000001"
 def K2 : Id := "60000000-0000-7000-8000-000000000002"
 def K3 : Id := "60000000-0000-7000-8000-000000000003"
+def K4 : Id := "60000000-0000-7000-8000-000000000004"
 def E1 : Id := "70000000-0000-7000-8000-000000000001"   -- an email on the email proof's stream
 def E2 : Id := "70000000-0000-7000-8000-000000000002"
+def W1 : Id := "80000000-0000-7000-8000-000000000001"   -- a work item on the work proof's stream
+def W2 : Id := "80000000-0000-7000-8000-000000000002"
 
 /-- The inbound messages, as the harness would name them. -/
 def eml (n : String) : String := s!"eloquentmail://personal/{n}.eml"
 def M1 := eml "m1"
 def M2 := eml "m2"
 def M3 := eml "m3"
+def M4 := eml "m4"
 
 abbrev Sv := inbound.service
 def core (c : Id) (cmd : Command) (f : Fresh := []) : Sv.Req := .inl (c, cmd, f)
@@ -74,6 +78,15 @@ def story : List (Sv.Req × Option String) :=
     (ck ann (.create S K3 M3 none), none),                                             -- position 12
     (ck ann (.ignore S K3 none), none),                                                -- position 13: alone, no ask, no review
     (ck ann (.ignore S K3 none), some "triage_is_decided_once"),
+    (ck ann (.create S K4 M4 none), none),                                             -- position 14
+    (ck eve (.review S K4 "work" (some "a one-time thing that needs a look")), none),  -- position 15: the third call
+    (ck eve (.work S K4 W1 none), some "only_opener_can_decide"),
+    (ck ann (.work S K3 W1 none), some "triage_is_decided_once"),
+    (ck ann (.work S K4 W1 (some "a general item, eqw-… on the work stream")), none),  -- position 16: decided
+    (ck ann (.work S K4 W2 none), some "triage_is_decided_once"),
+    (ck ann (.reply S K4 E2 none), some "triage_is_decided_once"),
+    (ck ann (.ignore S K4 none), some "triage_is_decided_once"),
+    (ck eve (.review S K4 "ignore" none), some "triage_must_be_undecided"),
     (core ben (.streamClose S none), some "only_opener_can_close"),
     (core ann (.streamClose S none), none),
     (ck ann (.create S K2 M2 none), some "stream_must_be_open") ]                      -- nothing after a close

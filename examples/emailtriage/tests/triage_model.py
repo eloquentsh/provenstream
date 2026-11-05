@@ -21,16 +21,17 @@ SCHEMA = {
     "triage.advise": [("stream_id", "uuid"), ("triage_id", "uuid"), ("verdict", "verdict"), ("meta", "meta")],
     "triage.review": [("stream_id", "uuid"), ("triage_id", "uuid"), ("verdict", "verdict"), ("meta", "meta")],
     "triage.reply": [("stream_id", "uuid"), ("triage_id", "uuid"), ("email_id", "uuid"), ("meta", "meta")],
+    "triage.work": [("stream_id", "uuid"), ("triage_id", "uuid"), ("work_id", "uuid"), ("meta", "meta")],
     "triage.ignore": [("stream_id", "uuid"), ("triage_id", "uuid"), ("meta", "meta")],
 }
 EVENT_OF = {"stream.open": "stream.opened", "stream.close": "stream.closed", "triage.create": "triage.created",
             "triage.ask": "triage.asked", "triage.advise": "triage.advised", "triage.review": "triage.reviewed",
-            "triage.reply": "triage.replied", "triage.ignore": "triage.ignored"}
+            "triage.reply": "triage.replied", "triage.work": "triage.worked", "triage.ignore": "triage.ignored"}
 FRESH = {"stream.open": 1}
 LAYER = tuple(c for c in SCHEMA if c.startswith("triage."))
 CORE = ("stream.open", "stream.close")
 COMMANDS = CORE + LAYER
-VERDICTS = ("reply", "ignore")
+VERDICTS = ("reply", "work", "ignore")
 
 HEX = re.compile(r"[0-9a-f]*\Z")
 
@@ -151,7 +152,7 @@ class Stream:
         return note in self.notes
 
     def decided(self, k):
-        return self.noted("replied", k) or self.noted("ignored", k)
+        return self.noted("replied", k) or self.noted("worked", k) or self.noted("ignored", k)
 
     def reviewed(self, k):
         return self.noted("reviewer", k)
@@ -188,6 +189,7 @@ class Stream:
                 "reviewers": self.pairs("reviewer", "reviewer_id"),
                 "calls": self.pairs("call", "verdict"),
                 "replied": self.pairs("replied", "email_id"),
+                "worked": self.pairs("worked", "work_id"),
                 "ignored": self.items("ignored")}
 
 
@@ -198,7 +200,7 @@ def _k(f):
 RULES = [
     ("only_opener_can_create", ("triage.create",), lambda s, a, c, f: s.opener == a),
     ("triage_id_must_be_new", ("triage.create",), lambda s, a, c, f: not s.noted("triage", _k(f))),
-    ("triage_must_exist", ("triage.ask", "triage.advise", "triage.review", "triage.reply", "triage.ignore"),
+    ("triage_must_exist", ("triage.ask", "triage.advise", "triage.review", "triage.reply", "triage.work", "triage.ignore"),
      lambda s, a, c, f: s.noted("triage", _k(f))),
     ("only_opener_can_ask", ("triage.ask",), lambda s, a, c, f: s.opener == a),
     ("adviser_must_not_be_the_opener", ("triage.ask",), lambda s, a, c, f: s.opener != f["adviser_id"]),
@@ -209,8 +211,8 @@ RULES = [
     ("adviser_advises_once", ("triage.advise",), lambda s, a, c, f: not s.contains(("advice", _k(f), a))),
     ("reviewer_must_not_be_an_adviser", ("triage.review",), lambda s, a, c, f: not s.contains(("adviser", _k(f), a))),
     ("reviewer_must_not_be_the_opener", ("triage.review",), lambda s, a, c, f: s.opener != a),
-    ("only_opener_can_decide", ("triage.reply", "triage.ignore"), lambda s, a, c, f: s.opener == a),
-    ("triage_is_decided_once", ("triage.reply", "triage.ignore"), lambda s, a, c, f: not s.decided(_k(f))),
+    ("only_opener_can_decide", ("triage.reply", "triage.work", "triage.ignore"), lambda s, a, c, f: s.opener == a),
+    ("triage_is_decided_once", ("triage.reply", "triage.work", "triage.ignore"), lambda s, a, c, f: not s.decided(_k(f))),
     ("triage_must_be_undecided", ("triage.ask", "triage.advise", "triage.review"), lambda s, a, c, f: not s.decided(_k(f))),
 ]
 RULE_NAMES = [r[0] for r in RULES]
@@ -273,6 +275,8 @@ def notes_of(event: dict):
         return [("reviewer", k, event["actor_id"]), ("call", k, event["verdict"])]
     if name == "triage.replied":
         return [("replied", k, event["email_id"])]
+    if name == "triage.worked":
+        return [("worked", k, event["work_id"])]
     if name == "triage.ignored":
         return [("ignored", k, "")]
     return []

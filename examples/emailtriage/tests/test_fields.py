@@ -67,6 +67,7 @@ CASES = [
     ("a missing message URL", (ANN, cmd("triage.create", triage_id=K2), []), MALFORMED),
     ("the verdict reply", (BEN, cmd("triage.review", triage_id=K, verdict="reply"), []), NOT_MALFORMED),
     ("the verdict ignore", (BEN, cmd("triage.review", triage_id=K, verdict="ignore"), []), NOT_MALFORMED),
+    ("the verdict work", (BEN, cmd("triage.review", triage_id=K, verdict="work"), []), NOT_MALFORMED),
     ("the verdict Reply (case matters)", (BEN, cmd("triage.review", triage_id=K, verdict="Reply"), []), MALFORMED),
     ("the verdict delegate", (BEN, cmd("triage.review", triage_id=K, verdict="delegate"), []), MALFORMED),
     ("the empty verdict", (BEN, cmd("triage.review", triage_id=K, verdict=""), []), MALFORMED),

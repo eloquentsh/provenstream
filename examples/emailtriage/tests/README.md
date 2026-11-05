@@ -5,7 +5,7 @@ rules in the engine's order, the event an accepted request becomes and the notes
 `examples/email/tests` (whose README explains them): a Hypothesis state machine with required coverage and named deep
 states (`test_sequences.py`), the acceptance theorem `the_creator_can_always_ignore` probed at every step, the Lean
 story parsed and replayed (`test_story.py`), and the field forms at the boundaries (`test_fields.py`), the `verdict`
-kind among them: exactly `reply` or `ignore`, and nothing else.
+kind among them: exactly `reply`, `work` or `ignore`, and nothing else.
 
 ```sh
 PYTHONPATH=host python3 -m pytest examples/emailtriage/tests -q
