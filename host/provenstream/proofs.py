@@ -22,9 +22,9 @@ schema). With no description to be had, the command fails clearly (`Unavailable`
 The check before sending (`check`): a proof command's method must be one of the description's commands
 (`method_not_found`, exit 5) and its params must be the command's (`invalid_params`, exit 5): no unknown key, every
 required one present, each of its kind (`uuid` a canonical lowercase UUID, `uuid?` one or null, `meta` text of at most
-4096 bytes with no control character or null, `ref` a natural number or null, any other kind a string with no U+0000),
-besides `actor_id` (a UUID) and `idempotency_key` (1 to 200 chars). Nothing is sent when it fails. The rules stay the
-host's.
+4096 bytes with no control character or null, `ref` a natural number or null, any other kind ending in `?` a string with
+no U+0000 or null, any other kind such a string), besides `actor_id` (a UUID) and `idempotency_key` (1 to 200 chars).
+Nothing is sent when it fails. The rules stay the host's.
 
 `markdown` renders a description as `-h --proof` prints it: stable Markdown for people and agents, the same bytes for
 the same description.
@@ -40,6 +40,11 @@ from .schema import CommandSpec, SchemaError, commands_of
 
 OPTIONAL_KINDS = ("uuid?", "meta", "ref")
 EVERY_COMMAND = ("actor_id", "idempotency_key")
+
+
+def optional(kind: str) -> bool:
+    """Whether a field of `kind` may be absent or null: `uuid?`, `meta`, `ref`, and any text kind ending in `?`."""
+    return kind in OPTIONAL_KINDS or kind.endswith("?")
 
 
 class Unavailable(ClientError):
@@ -204,6 +209,10 @@ def _kind_ok(kind: str, v: Any) -> Optional[str]:
         if v is None or (isinstance(v, int) and not isinstance(v, bool) and v >= 0):
             return None
         return "expected a natural number (the seq of an earlier event of this stream) or null"
+    if kind.endswith("?"):
+        if v is None or (isinstance(v, str) and "\x00" not in v):
+            return None
+        return "expected a string (%s) or null" % kind[:-1]
     if not isinstance(v, str) or "\x00" in v:
         return "expected a string (%s)" % kind
     return None
@@ -215,10 +224,10 @@ def problem(spec: CommandSpec, params: Dict[str, Any]) -> Optional[str]:
     for k in params:
         if k not in names:
             return "%s: unknown param %s (expected {%s})" % (spec.name, k, ", ".join(
-                f + ("?" if (dict(spec.params).get(f) in OPTIONAL_KINDS or f in EVERY_COMMAND) else "")
+                f + ("?" if (optional(dict(spec.params).get(f, "")) or f in EVERY_COMMAND) else "")
                 for f in names))
     for f, kind in spec.params:
-        if kind not in OPTIONAL_KINDS and f not in params:
+        if not optional(kind) and f not in params:
             return "%s: %s: required" % (spec.name, f)
     for f, kind in spec.params:
         if f in params:
@@ -293,13 +302,13 @@ def markdown(desc: dict) -> str:
                 "| param | type | required | notes |", "|---|---|---|---|"]
         for f, kind in s.params:
             note = NOTES.get(kind, "text, its form checked by the proof's rules" if f == "proof_revision_url"
-                             else "text")
-            row = "| %s | %s | %s | %s |" % (f, TYPE.get(kind, kind), "optional" if kind in OPTIONAL_KINDS
+                             else ("text, or null" if optional(kind) else "text"))
+            row = "| %s | %s | %s | %s |" % (f, TYPE.get(kind, kind.rstrip("?")), "optional" if optional(kind)
                                               else "required", note)
             out.append(row.replace("|  |", "| |"))
         out += ["", "Minted by the host: %s." % (", ".join("`%s`" % m for m in s.minted) or "none"), "",
                 "Event `%s`: `{%s}`" % (s.event, ", ".join(s.event_fields)), "", "Call it:", "", "```sh"]
-        args = " ".join("-f %s=%s" % (f, _placeholder(f)) for f, kind in s.params if kind not in OPTIONAL_KINDS)
+        args = " ".join("-f %s=%s" % (f, _placeholder(f)) for f, kind in s.params if not optional(kind))
         out.append(("provenstream api %s %s" % (s.name, args)).rstrip())
         if s.name == "stream.open":
             out.append("provenstream stream open <proof_revision_url>")

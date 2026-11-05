@@ -16,3 +16,4 @@ __pycache__/
 *.db-wal
 .DS_Store
 .venv/
+.hypothesis/

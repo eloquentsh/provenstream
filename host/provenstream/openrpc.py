@@ -10,8 +10,9 @@ describe of every revision served (its proof commands, params, minted fields, wh
 counts), so two hosts' documents can be diffed and the committed HOST-PROTOCOL.md checked for staleness.
 
 Proof commands. Each command of each served revision is a method: a param of kind `uuid` is a required canonical id,
-`uuid?` an optional one, `meta` an optional string, `ref` an optional position in the stream, any other kind a required
-text the engine checks the form of. Minted fields are never params: the host mints them, and they are in the result's
+`uuid?` an optional one, `meta` an optional string, `ref` an optional position in the stream, any other kind ending in
+`?` an optional text the engine checks the form of, any other kind a required one. Minted fields are never params: the
+host mints them, and they are in the result's
 event. `actor_id` (the caller, filled in from the token) and `idempotency_key` are optional params of every proof
 command. Who may send it (`x-provenstream-who`), its event (`x-provenstream-event`) and the rules that can refuse it, in
 order (`x-provenstream-rules`), are the description's. A command several revisions describe alike is one method listing
@@ -56,10 +57,19 @@ ACTOR_ID = dict(UUID, description="the caller's own principal_id (filled in from
 CHAIN_HEAD = {"type": "string", "pattern": "[0-9a-f]{64}", "description": "the stream's chain head after this row"}
 
 
+def optional(kind: str) -> bool:
+    """Whether a field of `kind` may be absent or null: `uuid?`, `meta`, `ref`, and any text kind ending in `?`."""
+    return kind in OPTIONAL_KINDS or kind.endswith("?")
+
+
 def field_schema(kind: str) -> dict:
-    """The JSON schema of a field of `kind`; a kind the table does not name is a text the engine checks."""
+    """The JSON schema of a field of `kind`; a kind the table does not name is a text the engine checks, optional (or
+    null) when the kind ends in `?`."""
     if kind in FIELD_KINDS:
         return dict(FIELD_KINDS[kind])
+    if kind.endswith("?"):
+        return {"type": ["string", "null"], "description": "optional: text (%s), its form checked by the engine, or "
+                                                            "null" % kind[:-1]}
     return {"type": "string", "description": "%s, its form checked by the engine" % (
         "text" if kind == "text" else "text (%s)" % kind)}
 
@@ -81,7 +91,7 @@ def _errors(codes: List[str]) -> List[dict]:
 
 def proof_variant(spec: CommandSpec) -> dict:
     """What one revision says of one command: its params, its result, its minted fields, who, event and rules."""
-    params = [_param(f, field_schema(k), k not in OPTIONAL_KINDS) for f, k in spec.params]
+    params = [_param(f, field_schema(k), not optional(k)) for f, k in spec.params]
     params.append(_param("actor_id", ACTOR_ID, False))
     params.append(_param("idempotency_key", IDEMPOTENCY_KEY, False))
     kinds = dict(spec.params)

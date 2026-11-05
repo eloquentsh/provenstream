@@ -23,14 +23,16 @@ open Provenstream.Wire
 /-! ## Kinds of field, and values -/
 
 /-- The kind of a command's field: a canonical UUID; an optional canonical UUID (`uuid?`: a UUID, or absent or `null`
-for none); a text without U+0000 that `wf` accepts (advertised under `name`); the optional opaque `meta`; or a reference
-to an earlier event of the same stream, by its 0-based position in the stream (`ref`: a natural number, or absent or
-`null` for none). The mechanism checks every reference of every layer event before the layer's rules
-(`ref_must_name_an_earlier_event`, `Layer.lean`). -/
+for none); a text without U+0000 that `wf` accepts (advertised under `name`); an optional such text (advertised under
+`name?`: the text, or absent or `null` for none); the optional opaque `meta`; or a reference to an earlier event of the
+same stream, by its 0-based position in the stream (`ref`: a natural number, or absent or `null` for none). The
+mechanism checks every reference of every layer event before the layer's rules (`ref_must_name_an_earlier_event`,
+`Layer.lean`). -/
 inductive Kind where
   | uuid
   | uuidOpt
   | text (name : String) (wf : String → Bool)
+  | textOpt (name : String) (wf : String → Bool)
   | metaOpt
   | ref
 
@@ -47,6 +49,7 @@ def Kind.name : Kind → String
   | .uuid => "uuid"
   | .uuidOpt => "uuid?"
   | .text n _ => n
+  | .textOpt n _ => n ++ "?"
   | .metaOpt => "meta"
   | .ref => "ref"
 
@@ -69,6 +72,8 @@ def Kind.wf : Kind → Val → Bool
   | .uuidOpt, .uo none => true
   | .uuidOpt, .uo (some x) => validUuid x
   | .text _ wf, .s x => noNul x && wf x
+  | .textOpt _ _, .uo none => true
+  | .textOpt _ wf, .uo (some x) => noNul x && wf x
   | .metaOpt, .m o => wfMeta o
   | .ref, .r _ => true
   | _, _ => false
@@ -101,6 +106,10 @@ def Kind.fromJ (what : String) (kvs : Fields) : String × Kind → Except String
     | none | some .null => .ok (.uo none)
     | some (.str s) => .ok (.uo (some s))
     | some _ => .error s!"{what}.{k}: expected a string (a canonical UUID) or null"
+  | (k, .textOpt n _) => match get? kvs k with
+    | none | some .null => .ok (.uo none)
+    | some (.str s) => .ok (.uo (some s))
+    | some _ => .error s!"{what}.{k}: expected a string ({n}) or null"
   | (k, .ref) => match get? kvs k with
     | none | some .null => .ok (.r none)
     | some (.num n) => .ok (.r (some n))
