@@ -5,7 +5,7 @@
 a fresh engine and seals the outputs; `corpus/replay` checks them byte for byte.
 
 Each session's prefix names its engine: `core-*` the core's (`.lake/build/bin/core-engine`), `log-*`, `principals-*`,
-`tasks-*` and `work-*` the examples' (`examples/<name>`), `tower-*` the three-level tower's (`tests/tower`). The `core-*`
+`tasks-*`, `work-*`, `email-*` and `emailtriage-*` the examples' (`examples/<name>`), `tower-*` the three-level tower's (`tests/tower`). The `core-*`
 sessions are also the stream interface's (`host/provenstream/interface/`, byte-identical copies): every engine must
 answer them as the core does.
 
@@ -446,6 +446,125 @@ def work_malformed():
     ]]
 
 
+def email_commands(stream):
+    """Email commands on `stream`: `m(actor, name, email_id, **params)`."""
+    return lambda actor, name, k, **kv: cmd(actor, name, stream, email_id=k, **kv)
+
+
+def email_rules():
+    """The email layer: every layer rule refusing, the field forms, the core's admission on its events, and every
+    command accepted."""
+    eurl = REPO + "/tree/" + C40 + "/examples/email"
+    m = email_commands(S1)
+    files = "https://files.example.org/"
+    inbound, d1, d2, d3 = files + "inbound.eml", files + "draft-1.eml", files + "draft-2.eml", files + "draft-3.eml"
+    f1, f2, f3, sent, sent2 = (files + "final-1.eml", files + "final-2.eml", files + "final-3.eml",
+                               files + "sent-1.eml", files + "sent-2.eml")
+    screen, screen2 = files + "screen-1.svg", files + "screen-2.svg"
+    return [
+        m(ANN, "email.create", W1),                                  # stream_must_exist (admission)
+        open_(ANN, S1, url=eurl),                                    # accepted, at 0
+        m(BEN, "email.create", W1),                                  # only_opener_can_create
+        m(ANN, "email.create", W1, in_reply_to_url=files + "inbound.txt"),  # the form: not an .eml
+        m(ANN, "email.create", W1, in_reply_to_url=inbound, meta="answer Ben"),  # accepted: a reply, at 1
+        m(ANN, "email.create", W1),                                  # email_id_must_be_new
+        m(ANN, "email.solicit", W9, drafter_id=BEN),                 # email_must_exist
+        m(CY, "email.solicit", W1, drafter_id=BEN),                  # only_opener_can_solicit
+        m(ANN, "email.solicit", W1, drafter_id=ANN),                 # drafter_must_not_be_the_opener
+        m(BEN, "email.draft", W1, draft_url=d1),                     # only_solicited_drafters_can_draft
+        m(ANN, "email.solicit", W1, drafter_id=BEN),                 # accepted, at 2
+        m(ANN, "email.solicit", W1, drafter_id=BEN),                 # drafter_is_solicited_once
+        m(BEN, "email.draft", W1, draft_url=inbound),                # eml_urls_must_be_unique: the message it replies to
+        m(BEN, "email.draft", W1, draft_url=files + "draft.txt"),    # the form: not an .eml
+        m(BEN, "email.draft", W1, draft_url=d1),                     # accepted, at 3
+        m(BEN, "email.draft", W1, draft_url=d1),                     # eml_urls_must_be_unique
+        m(BEN, "email.draft", W1, draft_url=d2),                     # accepted: as often as it likes, at 4
+        m(BEN, "email.compose", W1, composed_url=f1, screen_url=screen),  # composer_must_not_be_a_drafter
+        m(ANN, "email.compose", W1, composed_url=f1, screen_url=screen),  # composer_must_not_be_the_opener
+        m(CY, "email.compose", W1, composed_url=d1, screen_url=screen),   # eml_urls_must_be_unique: another's draft
+        m(CY, "email.compose", W1, composed_url=f1, screen_url="not a url"),  # the form: not a URL
+        m(ANN, "email.send", W1, sent_url=files + "sent.txt"),       # the form: not an .eml
+        m(CY, "email.compose", W1, composed_url=f1, screen_url=screen),   # accepted, at 5
+        m(ANN, "email.solicit", W1, drafter_id=CY),                  # drafter_must_not_be_a_composer
+        m(ANN, "email.solicit", W1, drafter_id=DEE),                 # email_must_not_be_composed
+        m(BEN, "email.draft", W1, draft_url=d3),                     # email_must_not_be_composed
+        m(CY, "email.compose", W1, composed_url=f2, screen_url=screen2),  # accepted: a revision, at 6
+        m(BEN, "email.send", W1, sent_url=sent),                     # only_opener_can_decide
+        m(ANN, "email.send", W1, sent_url=f2),                       # eml_urls_must_be_unique: the sent message is its own
+        m(ANN, "email.send", W1, sent_url=sent, meta="send it"),     # accepted, at 7
+        m(ANN, "email.send", W1, sent_url=sent2),                    # email_is_decided_once
+        m(ANN, "email.discard", W1),                                 # email_is_decided_once
+        m(ANN, "email.solicit", W1, drafter_id=EVE),                 # email_must_not_be_composed: tried first
+        m(CY, "email.compose", W1, composed_url=f3, screen_url=screen),   # email_must_be_undecided
+        m(ANN, "email.create", W2),                                  # accepted: no reply, the field absent, at 8
+        m(BEN, "email.discard", W2),                                 # only_opener_can_decide
+        m(ANN, "email.discard", W2, meta="not needed"),              # accepted, at 9
+        m(ANN, "email.solicit", W2, drafter_id=BEN),                 # email_must_be_undecided
+        m(ANN, "email.create", W4, in_reply_to_url=None),            # accepted: no reply, the field null, at 10
+        read(S1),
+        close(ANN, S1),                                              # accepted, at 11
+        m(ANN, "email.create", W3),                                  # stream_must_be_open (admission)
+        SCHEMA,
+    ]
+
+
+def emailtriage_commands(stream):
+    """Triage commands on `stream`: `t(actor, name, triage_id, **params)`."""
+    return lambda actor, name, k, **kv: cmd(actor, name, stream, triage_id=k, **kv)
+
+
+def emailtriage_rules():
+    """The triage layer: every layer rule refusing, the field forms, the core's admission on its events, and every
+    command accepted."""
+    turl = REPO + "/tree/" + C40 + "/examples/emailtriage"
+    t = emailtriage_commands(S1)
+    msg, msg2, msg3 = ("https://files.example.org/inbound-" + n + ".eml" for n in "123")
+    return [
+        t(ANN, "triage.create", W1, message_url=msg),                # stream_must_exist (admission)
+        open_(ANN, S1, url=turl),                                    # accepted, at 0
+        t(BEN, "triage.create", W1, message_url=msg),                # only_opener_can_create
+        t(ANN, "triage.create", W1, message_url="https://files.example.org/inbound.txt"),  # the form: not an .eml
+        t(ANN, "triage.create", W1, message_url=msg, meta="from Ben"),  # accepted, at 1
+        t(ANN, "triage.create", W1, message_url=msg2),               # triage_id_must_be_new
+        t(ANN, "triage.ask", W9, adviser_id=BEN),                    # triage_must_exist
+        t(CY, "triage.ask", W1, adviser_id=BEN),                     # only_opener_can_ask
+        t(ANN, "triage.ask", W1, adviser_id=ANN),                    # adviser_must_not_be_the_opener
+        t(BEN, "triage.advise", W1, verdict="reply"),                # only_asked_advisers_can_advise
+        t(ANN, "triage.ask", W1, adviser_id=BEN),                    # accepted, at 2
+        t(ANN, "triage.ask", W1, adviser_id=BEN),                    # adviser_is_asked_once
+        t(BEN, "triage.advise", W1, verdict="maybe"),                # the form: not a verdict
+        t(BEN, "triage.advise", W1, verdict="reply", meta="a friend"),  # accepted, at 3
+        t(BEN, "triage.advise", W1, verdict="ignore"),               # adviser_advises_once
+        t(ANN, "triage.ask", W1, adviser_id=DEE),                    # accepted, at 4
+        t(BEN, "triage.review", W1, verdict="work"),                 # reviewer_must_not_be_an_adviser
+        t(ANN, "triage.review", W1, verdict="work"),                 # reviewer_must_not_be_the_opener
+        t(CY, "triage.review", W1, verdict="soon"),                  # the form: not a verdict
+        t(CY, "triage.review", W1, verdict="work"),                  # accepted, at 5
+        t(ANN, "triage.ask", W1, adviser_id=CY),                     # adviser_must_not_be_a_reviewer
+        t(ANN, "triage.ask", W1, adviser_id=EVE),                    # triage_must_not_be_reviewed
+        t(DEE, "triage.advise", W1, verdict="ignore"),               # triage_must_not_be_reviewed
+        t(CY, "triage.review", W1, verdict="reply"),                 # accepted: as often as it likes, at 6
+        t(BEN, "triage.reply", W1, email_id=W5),                     # only_opener_can_decide
+        t(ANN, "triage.reply", W1, email_id=W5, meta="answer it"),   # accepted, at 7
+        t(ANN, "triage.reply", W1, email_id=W5),                     # triage_is_decided_once
+        t(ANN, "triage.work", W1, work_id=W4),                       # triage_is_decided_once
+        t(ANN, "triage.ignore", W1),                                 # triage_is_decided_once
+        t(ANN, "triage.ask", W1, adviser_id=EVE),                    # triage_must_not_be_reviewed: tried first
+        t(CY, "triage.review", W1, verdict="ignore"),                # triage_must_be_undecided
+        t(ANN, "triage.create", W2, message_url=msg2),               # accepted, at 8
+        t(BEN, "triage.work", W2, work_id=W4),                       # only_opener_can_decide
+        t(ANN, "triage.work", W2, work_id=W4),                       # accepted, at 9
+        t(ANN, "triage.ask", W2, adviser_id=BEN),                    # triage_must_be_undecided
+        t(ANN, "triage.create", W3, message_url=msg3),               # accepted, at 10
+        t(BEN, "triage.ignore", W3),                                 # only_opener_can_decide
+        t(ANN, "triage.ignore", W3, meta="a newsletter"),            # accepted, at 11
+        read(S1),
+        close(ANN, S1),                                              # accepted, at 12
+        t(ANN, "triage.create", W4, message_url=msg),                # stream_must_be_open (admission)
+        SCHEMA,
+    ]
+
+
 def tower_rules():
     """The tower (reviews on tasks on the core): every rule of the review layer refusing, its guard on the core's
     stream.close, the tasks layer's and the core's rules still judging at the top, and every command accepted."""
@@ -502,6 +621,8 @@ def main():
     write("tasks-malformed", tasks_malformed())
     write("work-rules", work_rules())
     write("work-malformed", work_malformed())
+    write("email-rules", email_rules())
+    write("emailtriage-rules", emailtriage_rules())
     write("tower-rules", tower_rules())
 
 
