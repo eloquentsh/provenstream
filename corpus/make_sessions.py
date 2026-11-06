@@ -5,7 +5,7 @@
 a fresh engine and seals the outputs; `corpus/replay` checks them byte for byte.
 
 Each session's prefix names its engine: `core-*` the core's (`.lake/build/bin/core-engine`), `log-*`, `principals-*`,
-`tasks-*` and `work-*` the examples' (`examples/<name>`), `tower-*` the three-level tower's (`tests/tower`). The `core-*`
+`tasks-*`, `work-*` and `meeting-*` the examples' (`examples/<name>`), `tower-*` the three-level tower's (`tests/tower`). The `core-*`
 sessions are also the stream interface's (`host/provenstream/interface/`, byte-identical copies): every engine must
 answer them as the core does.
 
@@ -446,6 +446,62 @@ def work_malformed():
     ]]
 
 
+def meeting_commands(stream):
+    """Meeting commands on `stream`: `m(actor, name, meeting_id, **params)`."""
+    return lambda actor, name, k, **kv: cmd(actor, name, stream, meeting_id=k, **kv)
+
+
+def meeting_rules():
+    """The meeting layer: every layer rule refusing, the core's admission on its events, and every command accepted."""
+    murl = REPO + "/tree/" + C40 + "/examples/meeting"
+    m = meeting_commands(S1)
+    pin = "https://files.example.org/b/" + C64 + "#sha256=" + C64 + "&name=final.ics"
+    pin2 = "https://files.example.org/b/" + C64[::-1] + "#sha256=" + C64[::-1] + "&name=final.ics"
+    screen, screen2 = "https://files.example.org/screen-1.svg", "https://files.example.org/screen-2.svg"
+    draft, draft2 = "https://files.example.org/read-1.md", "https://files.example.org/read-2.txt"
+    acct = "gcal:ann@example.org"
+    return [
+        m(ANN, "meeting.create", W1),                                # stream_must_exist (admission)
+        open_(ANN, S1, url=murl),                                    # accepted, at 0
+        m(BEN, "meeting.create", W1),                                # only_opener_can_create
+        m(ANN, "meeting.create", W1, meta="lunch with Ben"),         # accepted, at 1
+        m(ANN, "meeting.create", W1),                                # meeting_id_must_be_new
+        m(ANN, "meeting.solicit", W9, drafter_id=BEN),               # meeting_must_exist
+        m(CY, "meeting.solicit", W1, drafter_id=BEN),                # only_opener_can_solicit
+        m(ANN, "meeting.solicit", W1, drafter_id=ANN),               # drafter_must_not_be_the_opener
+        m(BEN, "meeting.draft", W1, draft_url=draft),                # only_solicited_drafters_can_draft
+        m(ANN, "meeting.solicit", W1, drafter_id=BEN),               # accepted, at 2
+        m(ANN, "meeting.solicit", W1, drafter_id=BEN),               # drafter_is_solicited_once
+        m(BEN, "meeting.draft", W1, draft_url=draft),                # accepted: any text file, at 3
+        m(BEN, "meeting.draft", W1, draft_url=draft),                # urls_must_be_unique
+        m(BEN, "meeting.draft", W1, draft_url=draft2),               # accepted: as often as it likes, at 4
+        m(BEN, "meeting.compose", W1, composed_url=pin, account=acct, screen_url=screen),  # composer_must_not_be_a_drafter
+        m(ANN, "meeting.compose", W1, composed_url=pin, account=acct, screen_url=screen),  # composer_must_not_be_the_opener
+        m(CY, "meeting.compose", W1, composed_url="https://files.example.org/final.ics", account=acct, screen_url=screen),  # composed_url_must_be_pinned
+        m(ANN, "meeting.send", W1, sent_url=pin),                    # sent_must_be_the_latest_composed: none yet
+        m(CY, "meeting.compose", W1, composed_url=pin, account=acct, screen_url=screen),  # accepted, at 5
+        m(ANN, "meeting.solicit", W1, drafter_id=CY),                # drafter_must_not_be_a_composer
+        m(ANN, "meeting.solicit", W1, drafter_id=DEE),               # meeting_must_not_be_composed
+        m(BEN, "meeting.draft", W1, draft_url="https://files.example.org/read-3.md"),  # meeting_must_not_be_composed
+        m(CY, "meeting.compose", W1, composed_url=pin2, account=acct, screen_url=screen2),  # accepted: a revision, at 6
+        m(ANN, "meeting.send", W1, sent_url=pin),                    # sent_must_be_the_latest_composed: an older one
+        m(BEN, "meeting.send", W1, sent_url=pin2),                   # only_opener_can_decide
+        m(ANN, "meeting.send", W1, sent_url=pin2, meta="send it"),   # accepted, at 7
+        m(ANN, "meeting.send", W1, sent_url=pin2),                   # meeting_is_decided_once
+        m(ANN, "meeting.discard", W1),                               # meeting_is_decided_once
+        m(ANN, "meeting.solicit", W1, drafter_id=EVE),               # meeting_must_not_be_composed: tried first
+        m(CY, "meeting.compose", W1, composed_url=pin + "x.ics", account=acct, screen_url=screen),  # meeting_must_be_undecided
+        m(ANN, "meeting.create", W2),                                # accepted, at 8
+        m(BEN, "meeting.discard", W2),                               # only_opener_can_decide
+        m(ANN, "meeting.discard", W2, meta="not needed"),            # accepted, at 9
+        m(ANN, "meeting.solicit", W2, drafter_id=BEN),               # meeting_must_be_undecided
+        read(S1),
+        close(ANN, S1),                                              # accepted, at 10
+        m(ANN, "meeting.create", W3),                                # stream_must_be_open (admission)
+        SCHEMA,
+    ]
+
+
 def tower_rules():
     """The tower (reviews on tasks on the core): every rule of the review layer refusing, its guard on the core's
     stream.close, the tasks layer's and the core's rules still judging at the top, and every command accepted."""
@@ -502,6 +558,7 @@ def main():
     write("tasks-malformed", tasks_malformed())
     write("work-rules", work_rules())
     write("work-malformed", work_malformed())
+    write("meeting-rules", meeting_rules())
     write("tower-rules", tower_rules())
 
 

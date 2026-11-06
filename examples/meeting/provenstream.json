@@ -1,0 +1,17 @@
+{
+  "name": "meeting",
+  "engine": "meeting-engine",
+  "namespaces": [
+    "Meeting"
+  ],
+  "layer_modules": [
+    "Meeting/Layer.lean",
+    "Meeting/Theorems.lean",
+    "Meeting/Examples.lean"
+  ],
+  "audit_roots": [
+    "Meeting.meetings"
+  ],
+  "revision_module": "MeetingRevision.lean",
+  "revision_def": "Meeting.built"
+}
