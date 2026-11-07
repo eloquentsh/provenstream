@@ -1,0 +1,17 @@
+{
+  "name": "post",
+  "engine": "post-engine",
+  "namespaces": [
+    "Post"
+  ],
+  "layer_modules": [
+    "Post/Layer.lean",
+    "Post/Theorems.lean",
+    "Post/Examples.lean"
+  ],
+  "audit_roots": [
+    "Post.posts"
+  ],
+  "revision_module": "PostRevision.lean",
+  "revision_def": "Post.built"
+}
