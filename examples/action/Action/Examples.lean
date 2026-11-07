@@ -33,6 +33,7 @@ def C : String :=
 #guard !pinned "https://example.org/x#sha256=abc"
 #guard !validUrl "not a url"
 #guard validPageUrl "none" && validPageUrl C && !validPageUrl "nothing"
+#guard validOutcome "done" && validOutcome "not_run" && !validOutcome "sent"
 #guard validMode "readonly" && validMode "action_allowed" && !validMode "admin"
 
 /-! What may run. -/
@@ -77,6 +78,14 @@ def story : List (Sv.Req × Option String) :=
     (ck bro (ask K4), none),
     (ck jev (.reject S K4 none), none),                                                   -- an evaluator rejects
     (ck ann (.approve S K4 none), some "action_is_answered_once"),                        -- a rejection stands
+    (ck bro (.record S K9 "done" C none), some "an_attempt_must_be_allowed"),             -- never answered
+    (ck jev (.record S K1 "done" C none), some "only_the_asker_records"),
+    (ck bro (.record S K1 "done" "https://example.org/result.json" none), some "result_url_must_be_pinned"),
+    (ck bro (.record S K1 "done" C none), none),                                         -- approved, so it may have run
+    (ck bro (.record S K1 "failed" C none), some "action_is_recorded_once"),
+    (ck bro (.record S K4 "done" C none), some "an_attempt_must_be_allowed"),             -- rejected in readonly
+    (ck bro (.record S K4 "not_run" C none), none),
+    (ck bro (.record S K2 "done" C none), none),                                         -- rejected, overridden in action_allowed
     (core ben (.streamClose S none), some "only_opener_can_close"),
     (core ann (.streamClose S none), none),
     (ck bro (ask K9), some "stream_must_be_open") ]                                       -- nothing after a close

@@ -531,6 +531,12 @@ def action_rules():
         ev(CY, W9),                                                   # accepted, at 6
         a(CY, "action.approve", W9),                                  # asker_must_not_answer
         a(ANN, "action.reject", W9, meta="no"),                       # accepted, at 7
+        a(CY, "action.record", W1, outcome="done", result_url=pin),   # only_the_asker_records
+        a(BEN, "action.record", W1, outcome="done", result_url="https://files.example.org/r.json"),  # result_url_must_be_pinned
+        a(BEN, "action.record", W1, outcome="done", result_url=pin),  # accepted, at 8
+        a(BEN, "action.record", W1, outcome="done", result_url=pin),  # action_is_recorded_once
+        a(CY, "action.record", W9, outcome="done", result_url=pin),   # an_attempt_must_be_allowed
+        a(CY, "action.record", W9, outcome="not_run", result_url=pin),  # accepted, at 9
     ]
 
 

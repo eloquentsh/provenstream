@@ -199,5 +199,21 @@ ASKER_ANSWERS = {
     "fails_at": None,
 }
 
+ATTEMPT_UNCHECKED = {
+    "name": "attempt-unchecked",
+    "what": "the action layer's rule an_attempt_must_be_allowed lets an action be recorded as done whatever its answer; the theorem that "
+            "every recorded attempt was allowed (every_recorded_attempt_was_allowed) must fail",
+    "layer": "examples/action",
+    "lib": "Action",
+    "edits": [
+        ("Action/Layer.lean",
+         """               | .recorded _ _ k o _ _ => o == "not_run" || mayRun w k | _ => true⟩,""",
+         """               | .recorded .. => true | _ => true⟩,"""),
+    ],
+    "target": "Action.Theorems",
+    "fails_in": "every_recorded_attempt_was_allowed",
+    "fails_at": None,
+}
+
 CASES = [ANYONE_OPENS, ANYONE_ASSIGNS, ANYONE_FINISHES, OTHER_CLOSES, CLOSE_TWICE, TAKES_A_CORE_NAME, ANYONE_ASKS,
-         ASKER_ANSWERS]
+         ASKER_ANSWERS, ATTEMPT_UNCHECKED]

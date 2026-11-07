@@ -15,6 +15,10 @@ evaluator says whether it gets ready for the task or completes it. Getting ready
 - `action.approve {stream_id, action_id, meta?}` -> `action.approved`, `action.reject {stream_id, action_id, meta?}` -> `action.rejected`:
   the opener or an evaluator answers, once. Whoever asked never answers.
 
+- `action.record {stream_id, action_id, outcome, result_url, meta?}` -> `action.recorded`: whoever asked records what happened, once. The
+  outcome is `done`, `failed` or `not_run`, and `result_url` pins a file of the result that names the context. Only an action that may
+  run is recorded as `done` or `failed`.
+
 An action may run once it has an answer: an approval in any mode, or a rejection in `action_allowed`, which overrides it. A read of a
 stream names these in `runnable`. An action with no answer may not run, so an evaluator's opinion is always on the stream first.
 
@@ -22,7 +26,7 @@ An engine cannot see a page or fetch a URL, and it cannot stop a browser. It che
 Whoever reads the URL checks the bytes against the pin. A broker runs an action only when `runnable` names it.
 
 The memory is the notes the events make: `("evaluator", "", e)`, `("action", k, asker)`, `("mode", k, mode)`, `("approved", k, who)` and
-`("rejected", k, who)`.
+`("rejected", k, who)` and `("recorded", k, outcome)`.
 -/
 
 namespace Action
@@ -60,12 +64,15 @@ def pinned (u : String) : Bool :=
 /-- A page URL: a URL, or `none` for an action on no page, like opening a tab. -/
 def validPageUrl (s : String) : Bool := s == "none" || validUrl s
 
+def validOutcome (s : String) : Bool := s == "done" || s == "failed" || s == "not_run"
+
 def readonly : String := "readonly"
 def actionAllowed : String := "action_allowed"
 def validMode (s : String) : Bool := s == readonly || s == actionAllowed
 
 def urlKind : Kind := .text "url" validUrl
 def pageUrlKind : Kind := .text "page_url" validPageUrl
+def outcomeKind : Kind := .text "outcome" validOutcome
 def modeKind : Kind := .text "mode" validMode
 
 inductive ActionCommand where
@@ -73,6 +80,7 @@ inductive ActionCommand where
   | evaluate (stream action : Id) (context page mode : String) («meta» : Meta)
   | approve (stream action : Id) («meta» : Meta)
   | reject (stream action : Id) («meta» : Meta)
+  | record (stream action : Id) (outcome result : String) («meta» : Meta)
   deriving DecidableEq
 
 inductive ActionEvent where
@@ -80,6 +88,7 @@ inductive ActionEvent where
   | evaluated (actor stream action : Id) (context page mode : String) («meta» : Meta)
   | approved (actor stream action : Id) («meta» : Meta)
   | rejected (actor stream action : Id) («meta» : Meta)
+  | recorded (actor stream action : Id) (outcome result : String) («meta» : Meta)
   deriving DecidableEq
 
 abbrev Note := String × String × String
@@ -89,6 +98,7 @@ def notes : ActionEvent → List Note
   | .evaluated a _ k _ _ f _ => [("action", k, a), ("mode", k, f)]
   | .approved a _ k _ => [("approved", k, a)]
   | .rejected a _ k _ => [("rejected", k, a)]
+  | .recorded _ _ k o _ _ => [("recorded", k, o)]
 
 def addNotes (st : List Note) (e : ActionEvent) : List Note := st ++ notes e
 
@@ -133,12 +143,14 @@ abbrev actions : Layer where
     | .evaluated a t k c g f m => (a, .evaluate t k c g f m)
     | .approved a t k m => (a, .approve t k m)
     | .rejected a t k m => (a, .reject t k m)
+    | .recorded a t k o r m => (a, .record t k o r m)
   ofRequest
     | (a, .nameEvaluator t e m) => .evaluatorNamed a t e m
     | (a, .evaluate t k c g f m) => .evaluated a t k c g f m
     | (a, .approve t k m) => .approved a t k m
     | (a, .reject t k m) => .rejected a t k m
-  stream | .nameEvaluator t .. | .evaluate t .. | .approve t .. | .reject t .. => t
+    | (a, .record t k o r m) => .recorded a t k o r m
+  stream | .nameEvaluator t .. | .evaluate t .. | .approve t .. | .reject t .. | .record t .. => t
   schema := [{ name := "evaluator.name", event := "evaluator.named", who := some "the stream's opener",
                fields := [("stream_id", .uuid), ("evaluator_id", .uuid), ("meta", .metaOpt)] },
              { name := "action.evaluate", event := "action.evaluated", who := some "anyone",
@@ -146,17 +158,21 @@ abbrev actions : Layer where
              { name := "action.approve", event := "action.approved", who := some "the opener or an evaluator, never whoever asked",
                fields := [("stream_id", .uuid), ("action_id", .uuid), ("meta", .metaOpt)] },
              { name := "action.reject", event := "action.rejected", who := some "the opener or an evaluator, never whoever asked",
-               fields := [("stream_id", .uuid), ("action_id", .uuid), ("meta", .metaOpt)] }]
+               fields := [("stream_id", .uuid), ("action_id", .uuid), ("meta", .metaOpt)] },
+             { name := "action.record", event := "action.recorded", who := some "whoever asked about the action",
+               fields := [("stream_id", .uuid), ("action_id", .uuid), ("outcome", outcomeKind), ("result_url", urlKind), ("meta", .metaOpt)] }]
   toVals
     | .nameEvaluator t e m => ("evaluator.name", [.s t, .s e, .m m])
     | .evaluate t k c g f m => ("action.evaluate", [.s t, .s k, .s c, .s g, .s f, .m m])
     | .approve t k m => ("action.approve", [.s t, .s k, .m m])
     | .reject t k m => ("action.reject", [.s t, .s k, .m m])
+    | .record t k o r m => ("action.record", [.s t, .s k, .s o, .s r, .m m])
   ofVals
     | "evaluator.name", [.s t, .s e, .m m] => some (.nameEvaluator t e m)
     | "action.evaluate", [.s t, .s k, .s c, .s g, .s f, .m m] => some (.evaluate t k c g f m)
     | "action.approve", [.s t, .s k, .m m] => some (.approve t k m)
     | "action.reject", [.s t, .s k, .m m] => some (.reject t k m)
+    | "action.record", [.s t, .s k, .s o, .s r, .m m] => some (.record t k o r m)
     | _, _ => none
   memory := foldMemory [] addNotes notesToJ notesFromJ notesFromJ_toJ
   readJ st := [("evaluators", .arr ((thirdOf st "evaluator").map .str)),
@@ -164,7 +180,8 @@ abbrev actions : Layer where
                ("approved", pairsOf st "approved" "by"),
                ("rejected", pairsOf st "rejected" "by"),
                ("modes", pairsOf st "mode" "mode"),
-               ("runnable", .arr ((runnable st).map .str))]
+               ("runnable", .arr ((runnable st).map .str)),
+               ("recorded", pairsOf st "recorded" "outcome")]
   rules := [⟨"only_opener_can_name_evaluators", ["evaluator.name"], fun v _ e => match e with
                | .evaluatorNamed a .. => v.opener == some a | _ => true⟩,
             ⟨"evaluator_must_not_be_the_opener", ["evaluator.name"], fun v _ e => match e with
@@ -177,12 +194,20 @@ abbrev actions : Layer where
                | .evaluated _ _ _ c _ _ _ => pinned c | _ => true⟩,
             ⟨"page_url_must_be_pinned", ["action.evaluate"], fun _ _ e => match e with
                | .evaluated _ _ _ _ g _ _ => g == "none" || pinned g | _ => true⟩,
-            ⟨"action_must_exist", ["action.approve", "action.reject"], fun _ w e => match e with
-               | .approved _ _ k _ | .rejected _ _ k _ => noted w "action" k | _ => true⟩,
+            ⟨"action_must_exist", ["action.approve", "action.reject", "action.record"], fun _ w e => match e with
+               | .approved _ _ k _ | .rejected _ _ k _ | .recorded _ _ k _ _ _ => noted w "action" k | _ => true⟩,
             ⟨"only_opener_or_evaluator_can_answer", ["action.approve", "action.reject"], fun v w e => match e with
                | .approved a .. | .rejected a .. => v.opener == some a || w.contains ("evaluator", "", a) | _ => true⟩,
             ⟨"asker_must_not_answer", ["action.approve", "action.reject"], fun _ w e => match e with
                | .approved a _ k _ | .rejected a _ k _ => !w.contains ("action", k, a) | _ => true⟩,
+            ⟨"only_the_asker_records", ["action.record"], fun _ w e => match e with
+               | .recorded a _ k _ _ _ => w.contains ("action", k, a) | _ => true⟩,
+            ⟨"result_url_must_be_pinned", ["action.record"], fun _ _ e => match e with
+               | .recorded _ _ _ _ r _ => pinned r | _ => true⟩,
+            ⟨"an_attempt_must_be_allowed", ["action.record"], fun _ w e => match e with
+               | .recorded _ _ k o _ _ => o == "not_run" || mayRun w k | _ => true⟩,
+            ⟨"action_is_recorded_once", ["action.record"], fun _ w e => match e with
+               | .recorded _ _ k _ _ _ => !noted w "recorded" k | _ => true⟩,
             ⟨"action_is_answered_once", ["action.approve", "action.reject"], fun _ w e => match e with
                | .approved _ _ k _ | .rejected _ _ k _ => !answered w k | _ => true⟩]
 

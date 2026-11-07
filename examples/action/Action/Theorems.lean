@@ -204,6 +204,50 @@ theorem a_mode_note_is_an_evaluation {e : ActionEvent} {k q : String} (h : ("mod
     ∃ a t c g m, e = .evaluated a t k c g q m := by
   cases e <;> simp_all [notes]
 
+/-! ## What happened -/
+
+/-- **Only whoever asked records what happened.** -/
+theorem only_the_asker_records {pre post : actions.XLog} {a t k : Id} {o r : String} {m : Meta}
+    (h : ValidX (pre ++ .inr (.recorded a t k o r m) :: post)) :
+    ("action", k, a) ∈ (evs pre t).flatMap notes := by
+  have := h.holdsNamed "only_the_asker_records"
+  dsimp only at this
+  simpa using this
+
+/-- **Every result URL is pinned.** -/
+theorem every_result_url_is_pinned {pre post : actions.XLog} {a t k : Id} {o r : String} {m : Meta}
+    (h : ValidX (pre ++ .inr (.recorded a t k o r m) :: post)) : pinned r = true := by
+  have := h.holdsNamed "result_url_must_be_pinned"
+  dsimp only at this
+  simpa using this
+
+/-- **Every recorded attempt was allowed**: an action recorded as `done` or `failed` was one the stream let run when it was recorded. -/
+theorem every_recorded_attempt_was_allowed {pre post : actions.XLog} {a t k : Id} {o r : String} {m : Meta}
+    (h : ValidX (pre ++ .inr (.recorded a t k o r m) :: post)) (ho : o ≠ "not_run") :
+    mayRun ((evs pre t).flatMap notes) k = true := by
+  have := h.holdsNamed "an_attempt_must_be_allowed"
+  dsimp only at this
+  simp only [read_notes, Commands.evStream_mk, Bool.or_eq_true, beq_iff_eq] at this
+  rcases this with hn | hr
+  · exact absurd hn ho
+  · exact hr
+
+/-- **An action is recorded once.** -/
+theorem an_action_is_recorded_once {pre post : actions.XLog} {a t k : Id} {o r : String} {m : Meta}
+    (h : ValidX (pre ++ .inr (.recorded a t k o r m) :: post)) :
+    noted ((evs pre t).flatMap notes) "recorded" k = false := by
+  have := h.holdsNamed "action_is_recorded_once"
+  dsimp only at this
+  simpa using this
+
+/-- **A record names an action that was asked about.** -/
+theorem a_record_names_an_action {pre post : actions.XLog} {a t k : Id} {o r : String} {m : Meta}
+    (h : ValidX (pre ++ .inr (.recorded a t k o r m) :: post)) :
+    noted ((evs pre t).flatMap notes) "action" k = true := by
+  have := h.holdsNamed "action_must_exist"
+  dsimp only at this
+  simpa using this
+
 /-! ## The core's guarantees, here -/
 
 /-- **Only the opener closes the stream** (`Layer.ValidX.close_by_opener`). -/
