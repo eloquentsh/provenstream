@@ -506,11 +506,10 @@ def action_rules():
     """The action layer: every layer rule refusing, the core's admission on its events, and every command accepted."""
     murl = REPO + "/tree/" + C40 + "/examples/action"
     pin = "https://files.example.org/b/" + C64 + "#sha256=" + C64 + "&name=context.json"
-    page = "https://files.example.org/b/" + C64[::-1] + "#sha256=" + C64[::-1] + "&name=page.md"
     def a(actor, name, k, **kv):
         return cmd(actor, name, S1, action_id=k, **kv)
     def ev(actor, k, mode="readonly"):
-        return a(actor, "action.evaluate", k, context_url=pin, page_url=page, mode=mode)
+        return a(actor, "action.evaluate", k, context_url=pin, mode=mode)
     return [
         ev(BEN, W1),                                                  # stream_must_exist (admission)
         open_(ANN, S1, url=murl),                                     # accepted, at 0
@@ -519,8 +518,7 @@ def action_rules():
         cmd(ANN, "evaluator.name", S1, evaluator_id=CY),              # accepted, at 1
         cmd(ANN, "evaluator.name", S1, evaluator_id=CY),              # evaluator_is_named_once
         a(CY, "action.approve", W1),                                  # action_must_exist
-        a(BEN, "action.evaluate", W1, context_url="https://files.example.org/c.json", page_url=page, mode="readonly"),  # context_url_must_be_pinned
-        a(BEN, "action.evaluate", W1, context_url=pin, page_url="https://files.example.org/page.md", mode="readonly"),  # page_url_must_be_pinned
+        a(BEN, "action.evaluate", W1, context_url="https://files.example.org/c.json", mode="readonly"),  # context_url_must_be_pinned
         ev(BEN, W1),                                                  # accepted, at 2
         ev(BEN, W1),                                                  # action_id_must_be_new
         a(BEN, "action.approve", W1),                                 # only_opener_or_evaluator_can_answer

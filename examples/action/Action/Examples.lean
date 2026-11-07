@@ -32,7 +32,6 @@ def C : String :=
 #guard validUrl "http://127.0.0.1:8791/c.json" && !pinned "http://127.0.0.1:8791/c.json"
 #guard !pinned "https://example.org/x#sha256=abc"
 #guard !validUrl "not a url"
-#guard validPageUrl "none" && validPageUrl C && !validPageUrl "nothing"
 #guard validOutcome "done" && validOutcome "not_run" && !validOutcome "sent"
 #guard validMode "readonly" && validMode "action_allowed" && !validMode "admin"
 
@@ -50,7 +49,7 @@ def aa : List Note := [("action", K1, bro), ("mode", K1, actionAllowed)]
 abbrev Sv := actions.service
 def core (c : Id) (cmd : Command) (f : Fresh := []) : Sv.Req := .inl (c, cmd, f)
 def ck (c : Id) (cmd : ActionCommand) (f : Fresh := []) : Sv.Req := .inr (c, cmd, f)
-def ask (k : Id) (f : String := "readonly") : ActionCommand := .evaluate S k C C f none
+def ask (k : Id) (f : String := "readonly") : ActionCommand := .evaluate S k C f none
 
 def story : List (Sv.Req × Option String) :=
   [ (ck bro (ask K1), some "stream_must_exist"),                                          -- the core's admission
@@ -60,9 +59,8 @@ def story : List (Sv.Req × Option String) :=
     (ck ann (.nameEvaluator S jev none), none),
     (ck ann (.nameEvaluator S jev none), some "evaluator_is_named_once"),
     (ck jev (.approve S K1 none), some "action_must_exist"),
-    (ck bro (.evaluate S K1 "https://example.org/c.json" C "readonly" none), some "context_url_must_be_pinned"),
-    (ck bro (.evaluate S K1 C "https://example.org/page.md" "readonly" none), some "page_url_must_be_pinned"),
-    (ck bro (.evaluate S K9 C "none" "readonly" none), none),                             -- an action on no page
+    (ck bro (.evaluate S K1 "https://example.org/c.json" "readonly" none), some "context_url_must_be_pinned"),
+    (ck bro (ask K9), none),
     (ck bro (ask K1), none),
     (ck bro (ask K1), some "action_id_must_be_new"),
     (ck ben (.approve S K1 none), some "only_opener_or_evaluator_can_answer"),

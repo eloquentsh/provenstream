@@ -70,24 +70,17 @@ theorem an_evaluator_is_named_once {pre post : actions.XLog} {a t x : Id} {m : M
   simpa using this
 
 /-- **An action id is new when it is asked about.** -/
-theorem an_action_id_is_new {pre post : actions.XLog} {a t k : Id} {c g f : String} {m : Meta}
-    (h : ValidX (pre ++ .inr (.evaluated a t k c g f m) :: post)) :
+theorem an_action_id_is_new {pre post : actions.XLog} {a t k : Id} {c f : String} {m : Meta}
+    (h : ValidX (pre ++ .inr (.evaluated a t k c f m) :: post)) :
     noted ((evs pre t).flatMap notes) "action" k = false := by
   have := h.holdsNamed "action_id_must_be_new"
   dsimp only at this
   simpa using this
 
 /-- **Every context URL is pinned.** The proof sees the form of the pin and never the bytes. -/
-theorem every_context_url_is_pinned {pre post : actions.XLog} {a t k : Id} {c g f : String} {m : Meta}
-    (h : ValidX (pre ++ .inr (.evaluated a t k c g f m) :: post)) : pinned c = true := by
+theorem every_context_url_is_pinned {pre post : actions.XLog} {a t k : Id} {c f : String} {m : Meta}
+    (h : ValidX (pre ++ .inr (.evaluated a t k c f m) :: post)) : pinned c = true := by
   have := h.holdsNamed "context_url_must_be_pinned"
-  dsimp only at this
-  simpa using this
-
-/-- **Every page URL is pinned**, unless the action is on no page. -/
-theorem every_page_url_is_pinned {pre post : actions.XLog} {a t k : Id} {c g f : String} {m : Meta}
-    (h : ValidX (pre ++ .inr (.evaluated a t k c g f m) :: post)) : g = "none" ∨ pinned g = true := by
-  have := h.holdsNamed "page_url_must_be_pinned"
   dsimp only at this
   simpa using this
 
@@ -201,7 +194,7 @@ theorem action_allowed_overrides_a_rejection {w : List Note} {k : String} (hr : 
 
 /-- **A mode is fixed when the action is asked about**: the only notes of a mode come from `action.evaluate`, and its id is new then. -/
 theorem a_mode_note_is_an_evaluation {e : ActionEvent} {k q : String} (h : ("mode", k, q) ∈ notes e) :
-    ∃ a t c g m, e = .evaluated a t k c g q m := by
+    ∃ a t c m, e = .evaluated a t k c q m := by
   cases e <;> simp_all [notes]
 
 /-! ## What happened -/
