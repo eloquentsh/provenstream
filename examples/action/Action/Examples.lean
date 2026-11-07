@@ -17,11 +17,13 @@ def ann : Id := "a0000000-0000-4000-8000-000000000001"   -- the opener
 def ben : Id := "b0000000-0000-4000-8000-000000000002"   -- someone else on the host
 def bro : Id := "c0000000-0000-4000-8000-000000000003"   -- the broker, who asks
 def jev : Id := "d0000000-0000-4000-8000-000000000004"   -- an evaluator
+def ext : Id := "e0000000-0000-4000-8000-000000000005"   -- an overrider, the extension
 def S : Id := "50000000-0000-7000-8000-000000000001"
 def K1 : Id := "60000000-0000-7000-8000-000000000001"
 def K2 : Id := "60000000-0000-7000-8000-000000000002"
 def K3 : Id := "60000000-0000-7000-8000-000000000003"
 def K4 : Id := "60000000-0000-7000-8000-000000000004"
+def K8 : Id := "60000000-0000-7000-8000-000000000008"
 def K9 : Id := "60000000-0000-7000-8000-000000000009"
 
 def C : String :=
@@ -41,10 +43,10 @@ def ro : List Note := [("action", K1, bro), ("mode", K1, readonly)]
 def aa : List Note := [("action", K1, bro), ("mode", K1, actionAllowed)]
 #guard !mayRun ro K1 && !mayRun aa K1                                       -- no answer, no run, in either mode
 #guard mayRun (ro ++ [("approved", K1, jev)]) K1 && mayRun (aa ++ [("approved", K1, jev)]) K1
-#guard !mayRun (ro ++ [("rejected", K1, jev)]) K1                           -- a rejection stops it
-#guard mayRun (aa ++ [("rejected", K1, jev)]) K1                            -- action_allowed overrides it
-#guard runnable (aa ++ [("rejected", K1, jev)]) == [K1]
-#guard runnable (ro ++ [("rejected", K1, jev)]) == []
+#guard !mayRun (ro ++ [("rejected", K1, jev)]) K1 && !mayRun (aa ++ [("rejected", K1, jev)]) K1   -- the mode alone overrides nothing
+#guard mayRun (aa ++ [("rejected", K1, jev), ("overridden", K1, ext)]) K1  -- an override does
+#guard runnable (aa ++ [("rejected", K1, jev), ("overridden", K1, ext)]) == [K1]
+#guard runnable (aa ++ [("rejected", K1, jev)]) == []
 
 abbrev Sv := actions.service
 def core (c : Id) (cmd : Command) (f : Fresh := []) : Sv.Req := .inl (c, cmd, f)
@@ -68,7 +70,16 @@ def story : List (Sv.Req × Option String) :=
     (ck jev (.approve S K1 (some "score 120")), none),                                    -- an evaluator approves
     (ck ann (.reject S K1 none), some "action_is_answered_once"),
     (ck bro (ask K2 "action_allowed"), none),
-    (ck jev (.reject S K2 (some "completes the task")), none),                            -- recorded, then overridden
+    (ck ext (.override S K2 none), some "only_overriders_can_override"),                  -- not named yet
+    (ck ben (.nameOverrider S ext none), some "only_opener_can_name_overriders"),
+    (ck ann (.nameOverrider S ann none), some "overrider_must_not_be_the_opener"),
+    (ck ann (.nameOverrider S ext none), none),
+    (ck ann (.nameOverrider S ext none), some "overrider_is_named_once"),
+    (ck ext (.override S K2 none), some "only_a_rejection_is_overridden"),                -- no answer yet
+    (ck jev (.reject S K2 (some "completes the task")), none),
+    (ck ext (.override S K8 none), some "action_must_exist"),
+    (ck ext (.override S K2 (some "code typed")), none),                                  -- the person typed their code
+    (ck ext (.override S K2 none), some "action_is_overridden_once"),
     (ck jev (ask K3), none),                                                              -- an evaluator asks
     (ck jev (.approve S K3 none), some "asker_must_not_answer"),
     (ck ann (.reject S K3 (some "no")), none),
@@ -83,7 +94,10 @@ def story : List (Sv.Req × Option String) :=
     (ck bro (.record S K1 "failed" C none), some "action_is_recorded_once"),
     (ck bro (.record S K4 "done" C none), some "an_attempt_must_be_allowed"),             -- rejected in readonly
     (ck bro (.record S K4 "not_run" C none), none),
-    (ck bro (.record S K2 "done" C none), none),                                         -- rejected, overridden in action_allowed
+    (ck bro (.record S K2 "done" C none), none),                                         -- rejected, then overridden
+    (ck ann (.nameOverrider S bro none), none),
+    (ck bro (.override S K4 none), some "asker_must_not_override"),
+    (ck ext (.override S K4 none), some "override_comes_before_the_record"),             -- K4 was recorded as not run
     (core ben (.streamClose S none), some "only_opener_can_close"),
     (core ann (.streamClose S none), none),
     (ck bro (ask K9), some "stream_must_be_open") ]                                       -- nothing after a close

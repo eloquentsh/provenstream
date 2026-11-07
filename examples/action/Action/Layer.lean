@@ -15,18 +15,23 @@ evaluator says whether it gets ready for the task or completes it. Getting ready
 - `action.approve {stream_id, action_id, meta?}` -> `action.approved`, `action.reject {stream_id, action_id, meta?}` -> `action.rejected`:
   the opener or an evaluator answers, once. Whoever asked never answers.
 
+- `overrider.name {stream_id, overrider_id, meta?}` -> `overrider.named`: the opener names an overrider other than itself, once each. An
+  overrider is the browser extension, which overrides only after the person types their code in its own window.
+- `action.override {stream_id, action_id, meta?}` -> `action.overridden`: an overrider overrides a rejected action, once, before it is
+  recorded. Whoever asked never overrides.
 - `action.record {stream_id, action_id, outcome, result_url, meta?}` -> `action.recorded`: whoever asked records what happened, once. The
   outcome is `done`, `failed` or `not_run`, and `result_url` pins a file of the result that names the context. Only an action that may
   run is recorded as `done` or `failed`.
 
-An action may run once it has an answer: an approval in any mode, or a rejection in `action_allowed`, which overrides it. A read of a
-stream names these in `runnable`. An action with no answer may not run, so an evaluator's opinion is always on the stream first.
+An action may run once it is approved, or once it is rejected and then overridden. A read of a stream names these in `runnable`. An
+action with no answer may not run, so an evaluator's opinion is always on the stream first. `mode` records what the asker wanted, and
+decides nothing: only an override lets a rejected action run.
 
 An engine cannot see a page or fetch a URL, and it cannot stop a browser. It checks the form of the pin and nothing about the bytes.
-Whoever reads the URL checks the bytes against the pin. A broker runs an action only when `runnable` names it.
+Whoever reads the URL checks the bytes against the pin. The extension runs an action only when `runnable` names it.
 
 The memory is the notes the events make: `("evaluator", "", e)`, `("action", k, asker)`, `("mode", k, mode)`, `("approved", k, who)` and
-`("rejected", k, who)` and `("recorded", k, outcome)`.
+`("rejected", k, who)`, `("overrider", "", o)`, `("overridden", k, who)` and `("recorded", k, outcome)`.
 -/
 
 namespace Action
@@ -76,6 +81,8 @@ inductive ActionCommand where
   | evaluate (stream action : Id) (context mode : String) («meta» : Meta)
   | approve (stream action : Id) («meta» : Meta)
   | reject (stream action : Id) («meta» : Meta)
+  | nameOverrider (stream overrider : Id) («meta» : Meta)
+  | override (stream action : Id) («meta» : Meta)
   | record (stream action : Id) (outcome result : String) («meta» : Meta)
   deriving DecidableEq
 
@@ -84,6 +91,8 @@ inductive ActionEvent where
   | evaluated (actor stream action : Id) (context mode : String) («meta» : Meta)
   | approved (actor stream action : Id) («meta» : Meta)
   | rejected (actor stream action : Id) («meta» : Meta)
+  | overriderNamed (actor stream overrider : Id) («meta» : Meta)
+  | overridden (actor stream action : Id) («meta» : Meta)
   | recorded (actor stream action : Id) (outcome result : String) («meta» : Meta)
   deriving DecidableEq
 
@@ -94,6 +103,8 @@ def notes : ActionEvent → List Note
   | .evaluated a _ k _ f _ => [("action", k, a), ("mode", k, f)]
   | .approved a _ k _ => [("approved", k, a)]
   | .rejected a _ k _ => [("rejected", k, a)]
+  | .overriderNamed _ _ o _ => [("overrider", "", o)]
+  | .overridden a _ k _ => [("overridden", k, a)]
   | .recorded _ _ k o _ _ => [("recorded", k, o)]
 
 def addNotes (st : List Note) (e : ActionEvent) : List Note := st ++ notes e
@@ -102,9 +113,9 @@ def noted (w : List Note) (what k : String) : Bool := w.any fun n => n.1 == what
 
 def answered (w : List Note) (k : String) : Bool := noted w "approved" k || noted w "rejected" k
 
-/-- The action may run: approved in any mode, or rejected in `action_allowed`, which overrides the rejection. No answer, no run. -/
+/-- The action may run: approved, or rejected and then overridden. No answer, no run. -/
 def mayRun (w : List Note) (k : String) : Bool :=
-  noted w "approved" k || (noted w "rejected" k && w.contains ("mode", k, actionAllowed))
+  noted w "approved" k || (noted w "rejected" k && noted w "overridden" k)
 
 /-- The actions that may run, in the order they were asked about. -/
 def runnable (w : List Note) : List String :=
@@ -139,14 +150,18 @@ abbrev actions : Layer where
     | .evaluated a t k c f m => (a, .evaluate t k c f m)
     | .approved a t k m => (a, .approve t k m)
     | .rejected a t k m => (a, .reject t k m)
+    | .overriderNamed a t o m => (a, .nameOverrider t o m)
+    | .overridden a t k m => (a, .override t k m)
     | .recorded a t k o r m => (a, .record t k o r m)
   ofRequest
     | (a, .nameEvaluator t e m) => .evaluatorNamed a t e m
     | (a, .evaluate t k c f m) => .evaluated a t k c f m
     | (a, .approve t k m) => .approved a t k m
     | (a, .reject t k m) => .rejected a t k m
+    | (a, .nameOverrider t o m) => .overriderNamed a t o m
+    | (a, .override t k m) => .overridden a t k m
     | (a, .record t k o r m) => .recorded a t k o r m
-  stream | .nameEvaluator t .. | .evaluate t .. | .approve t .. | .reject t .. | .record t .. => t
+  stream | .nameEvaluator t .. | .evaluate t .. | .approve t .. | .reject t .. | .nameOverrider t .. | .override t .. | .record t .. => t
   schema := [{ name := "evaluator.name", event := "evaluator.named", who := some "the stream's opener",
                fields := [("stream_id", .uuid), ("evaluator_id", .uuid), ("meta", .metaOpt)] },
              { name := "action.evaluate", event := "action.evaluated", who := some "anyone",
@@ -155,6 +170,10 @@ abbrev actions : Layer where
                fields := [("stream_id", .uuid), ("action_id", .uuid), ("meta", .metaOpt)] },
              { name := "action.reject", event := "action.rejected", who := some "the opener or an evaluator, never whoever asked",
                fields := [("stream_id", .uuid), ("action_id", .uuid), ("meta", .metaOpt)] },
+             { name := "overrider.name", event := "overrider.named", who := some "the stream's opener",
+               fields := [("stream_id", .uuid), ("overrider_id", .uuid), ("meta", .metaOpt)] },
+             { name := "action.override", event := "action.overridden", who := some "an overrider the opener named, never whoever asked",
+               fields := [("stream_id", .uuid), ("action_id", .uuid), ("meta", .metaOpt)] },
              { name := "action.record", event := "action.recorded", who := some "whoever asked about the action",
                fields := [("stream_id", .uuid), ("action_id", .uuid), ("outcome", outcomeKind), ("result_url", urlKind), ("meta", .metaOpt)] }]
   toVals
@@ -162,12 +181,16 @@ abbrev actions : Layer where
     | .evaluate t k c f m => ("action.evaluate", [.s t, .s k, .s c, .s f, .m m])
     | .approve t k m => ("action.approve", [.s t, .s k, .m m])
     | .reject t k m => ("action.reject", [.s t, .s k, .m m])
+    | .nameOverrider t o m => ("overrider.name", [.s t, .s o, .m m])
+    | .override t k m => ("action.override", [.s t, .s k, .m m])
     | .record t k o r m => ("action.record", [.s t, .s k, .s o, .s r, .m m])
   ofVals
     | "evaluator.name", [.s t, .s e, .m m] => some (.nameEvaluator t e m)
     | "action.evaluate", [.s t, .s k, .s c, .s f, .m m] => some (.evaluate t k c f m)
     | "action.approve", [.s t, .s k, .m m] => some (.approve t k m)
     | "action.reject", [.s t, .s k, .m m] => some (.reject t k m)
+    | "overrider.name", [.s t, .s o, .m m] => some (.nameOverrider t o m)
+    | "action.override", [.s t, .s k, .m m] => some (.override t k m)
     | "action.record", [.s t, .s k, .s o, .s r, .m m] => some (.record t k o r m)
     | _, _ => none
   memory := foldMemory [] addNotes notesToJ notesFromJ notesFromJ_toJ
@@ -176,6 +199,8 @@ abbrev actions : Layer where
                ("approved", pairsOf st "approved" "by"),
                ("rejected", pairsOf st "rejected" "by"),
                ("modes", pairsOf st "mode" "mode"),
+               ("overriders", .arr ((thirdOf st "overrider").map .str)),
+               ("overridden", pairsOf st "overridden" "by"),
                ("runnable", .arr ((runnable st).map .str)),
                ("recorded", pairsOf st "recorded" "outcome")]
   rules := [⟨"only_opener_can_name_evaluators", ["evaluator.name"], fun v _ e => match e with
@@ -188,8 +213,24 @@ abbrev actions : Layer where
                | .evaluated _ _ k .. => !noted w "action" k | _ => true⟩,
             ⟨"context_url_must_be_pinned", ["action.evaluate"], fun _ _ e => match e with
                | .evaluated _ _ _ c _ _ => pinned c | _ => true⟩,
-            ⟨"action_must_exist", ["action.approve", "action.reject", "action.record"], fun _ w e => match e with
-               | .approved _ _ k _ | .rejected _ _ k _ | .recorded _ _ k _ _ _ => noted w "action" k | _ => true⟩,
+            ⟨"action_must_exist", ["action.approve", "action.reject", "action.override", "action.record"], fun _ w e => match e with
+               | .approved _ _ k _ | .rejected _ _ k _ | .overridden _ _ k _ | .recorded _ _ k _ _ _ => noted w "action" k | _ => true⟩,
+            ⟨"only_opener_can_name_overriders", ["overrider.name"], fun v _ e => match e with
+               | .overriderNamed a .. => v.opener == some a | _ => true⟩,
+            ⟨"overrider_must_not_be_the_opener", ["overrider.name"], fun v _ e => match e with
+               | .overriderNamed _ _ x _ => v.opener != some x | _ => true⟩,
+            ⟨"overrider_is_named_once", ["overrider.name"], fun _ w e => match e with
+               | .overriderNamed _ _ x _ => !w.contains ("overrider", "", x) | _ => true⟩,
+            ⟨"only_overriders_can_override", ["action.override"], fun _ w e => match e with
+               | .overridden a .. => w.contains ("overrider", "", a) | _ => true⟩,
+            ⟨"asker_must_not_override", ["action.override"], fun _ w e => match e with
+               | .overridden a _ k _ => !w.contains ("action", k, a) | _ => true⟩,
+            ⟨"only_a_rejection_is_overridden", ["action.override"], fun _ w e => match e with
+               | .overridden _ _ k _ => noted w "rejected" k | _ => true⟩,
+            ⟨"action_is_overridden_once", ["action.override"], fun _ w e => match e with
+               | .overridden _ _ k _ => !noted w "overridden" k | _ => true⟩,
+            ⟨"override_comes_before_the_record", ["action.override"], fun _ w e => match e with
+               | .overridden _ _ k _ => !noted w "recorded" k | _ => true⟩,
             ⟨"only_opener_or_evaluator_can_answer", ["action.approve", "action.reject"], fun v w e => match e with
                | .approved a .. | .rejected a .. => v.opener == some a || w.contains ("evaluator", "", a) | _ => true⟩,
             ⟨"asker_must_not_answer", ["action.approve", "action.reject"], fun _ w e => match e with

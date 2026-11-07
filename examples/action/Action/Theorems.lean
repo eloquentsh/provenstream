@@ -6,8 +6,8 @@ import Action.Layer
 # The action layer's guarantees
 
 Each holds of every valid log of the layer, and follows from the rules that held when its events were accepted. An answer comes
-only from the opener or a named evaluator, never from whoever asked, and an action gets one. `mayRun` says what a broker may run: no
-answer means no run, and a rejection stops an action unless its mode is `action_allowed`. The engine cannot see whether a broker obeys, so
+only from the opener or a named evaluator, never from whoever asked, and an action gets one. `mayRun` says what may run: no answer
+means no run, and a rejection stops an action unless a named overrider overrides it. The engine cannot see whether a broker obeys, so
 nothing here says what ran.
 -/
 
@@ -35,7 +35,7 @@ theorem noted_iff {w : List Note} {what k : String} : noted w what k = true ↔ 
 
 theorem evaluator_note {e : ActionEvent} {x : String} (h : ("evaluator", "", x) ∈ notes e) :
     ∃ a t m, e = .evaluatorNamed a t x m := by
-  cases e <;> simp_all [notes] <;> (split at h <;> simp_all)
+  cases e <;> simp_all [notes]
 
 /-- A note naming an evaluator came from a naming in the log. -/
 theorem named_of_contains {pre : actions.XLog} {t x : Id}
@@ -177,20 +177,23 @@ theorem no_answer_no_run {w : List Note} {k : String} (h : answered w k = false)
 theorem an_approved_action_may_run {w : List Note} {k : String} (h : noted w "approved" k = true) : mayRun w k = true := by
   simp [mayRun, h]
 
-/-- **Without `action_allowed`, a rejection stops the action**: an action that was not approved and whose mode is not noted as
-`action_allowed` may not run. -/
-theorem a_rejection_stops_the_action_without_action_allowed {w : List Note} {k : String} (ha : noted w "approved" k = false)
-    (hm : w.contains ("mode", k, actionAllowed) = false) : mayRun w k = false := by
+/-- **Without an override, a rejection stops the action**: an action that was not approved and was not overridden may not run. -/
+theorem a_rejection_stops_the_action_without_an_override {w : List Note} {k : String} (ha : noted w "approved" k = false)
+    (ho : noted w "overridden" k = false) : mayRun w k = false := by
   unfold mayRun
-  rw [ha, hm]
+  rw [ha, ho]
   simp
 
-/-- **In `action_allowed`, a rejection is overridden**, and it stays on the stream. -/
-theorem action_allowed_overrides_a_rejection {w : List Note} {k : String} (hr : noted w "rejected" k = true)
-    (hm : w.contains ("mode", k, actionAllowed) = true) : mayRun w k = true := by
+/-- **An override lets a rejected action run**, and the rejection stays on the stream. -/
+theorem an_override_lets_a_rejected_action_run {w : List Note} {k : String} (hr : noted w "rejected" k = true)
+    (ho : noted w "overridden" k = true) : mayRun w k = true := by
   unfold mayRun
-  rw [hr, hm]
+  rw [hr, ho]
   simp
+
+/-- **The mode decides nothing**: two streams that differ only in the modes they note let the same actions run. -/
+theorem the_mode_decides_nothing {w : List Note} {k : String} :
+    mayRun w k = (noted w "approved" k || (noted w "rejected" k && noted w "overridden" k)) := rfl
 
 /-- **A mode is fixed when the action is asked about**: the only notes of a mode come from `action.evaluate`, and its id is new then. -/
 theorem a_mode_note_is_an_evaluation {e : ActionEvent} {k q : String} (h : ("mode", k, q) ∈ notes e) :
@@ -236,6 +239,87 @@ theorem an_action_is_recorded_once {pre post : actions.XLog} {a t k : Id} {o r :
 /-- **A record names an action that was asked about.** -/
 theorem a_record_names_an_action {pre post : actions.XLog} {a t k : Id} {o r : String} {m : Meta}
     (h : ValidX (pre ++ .inr (.recorded a t k o r m) :: post)) :
+    noted ((evs pre t).flatMap notes) "action" k = true := by
+  have := h.holdsNamed "action_must_exist"
+  dsimp only at this
+  simpa using this
+
+/-! ## Overrides -/
+
+theorem overrider_note {e : ActionEvent} {x : String} (h : ("overrider", "", x) ∈ notes e) :
+    ∃ a t m, e = .overriderNamed a t x m := by
+  cases e <;> simp_all [notes]
+
+/-- **Every overrider is named by the opener.** -/
+theorem every_overrider_is_named_by_the_opener {pre post : actions.XLog} {a t x : Id} {m : Meta}
+    (h : ValidX (pre ++ .inr (.overriderNamed a t x m) :: post)) : Past.opener (cores pre) t = some a := by
+  have := h.holdsNamed "only_opener_can_name_overriders"
+  dsimp only at this
+  simpa using this
+
+/-- **No overrider is the opener at its naming.** -/
+theorem no_overrider_is_the_opener {pre post : actions.XLog} {a t x : Id} {m : Meta}
+    (h : ValidX (pre ++ .inr (.overriderNamed a t x m) :: post)) : Past.opener (cores pre) t ≠ some x := by
+  have := h.holdsNamed "overrider_must_not_be_the_opener"
+  dsimp only at this
+  simpa using this
+
+/-- **An overrider is named once.** -/
+theorem an_overrider_is_named_once {pre post : actions.XLog} {a t x : Id} {m : Meta}
+    (h : ValidX (pre ++ .inr (.overriderNamed a t x m) :: post)) :
+    ("overrider", "", x) ∉ (evs pre t).flatMap notes := by
+  have := h.holdsNamed "overrider_is_named_once"
+  dsimp only at this
+  simpa using this
+
+/-- **Every override is by an overrider the opener named.** -/
+theorem every_override_is_by_a_named_overrider {pre post : actions.XLog} {a t k : Id} {m : Meta}
+    (h : ValidX (pre ++ .inr (.overridden a t k m) :: post)) :
+    ∃ o m', (.inr (ActionEvent.overriderNamed o t a m') : actions.XEv) ∈ pre := by
+  have := h.holdsNamed "only_overriders_can_override"
+  dsimp only at this
+  simp only [read_notes, Commands.evStream_mk] at this
+  obtain ⟨e, hm, hs, hn⟩ := mem_notes_evs (List.contains_iff_mem.mp this)
+  obtain ⟨o, t', m', rfl⟩ := overrider_note hn
+  simp only [Commands.evStream_mk] at hs
+  subst hs
+  exact ⟨o, m', hm⟩
+
+/-- **Whoever asked never overrides.** -/
+theorem the_asker_never_overrides {pre post : actions.XLog} {a t k : Id} {m : Meta}
+    (h : ValidX (pre ++ .inr (.overridden a t k m) :: post)) :
+    ("action", k, a) ∉ (evs pre t).flatMap notes := by
+  have := h.holdsNamed "asker_must_not_override"
+  dsimp only at this
+  simpa using this
+
+/-- **Only a rejection is overridden.** -/
+theorem only_a_rejection_is_overridden {pre post : actions.XLog} {a t k : Id} {m : Meta}
+    (h : ValidX (pre ++ .inr (.overridden a t k m) :: post)) :
+    noted ((evs pre t).flatMap notes) "rejected" k = true := by
+  have := h.holdsNamed "only_a_rejection_is_overridden"
+  dsimp only at this
+  simpa using this
+
+/-- **An action is overridden once.** -/
+theorem an_action_is_overridden_once {pre post : actions.XLog} {a t k : Id} {m : Meta}
+    (h : ValidX (pre ++ .inr (.overridden a t k m) :: post)) :
+    noted ((evs pre t).flatMap notes) "overridden" k = false := by
+  have := h.holdsNamed "action_is_overridden_once"
+  dsimp only at this
+  simpa using this
+
+/-- **An override comes before the record.** -/
+theorem an_override_comes_before_the_record {pre post : actions.XLog} {a t k : Id} {m : Meta}
+    (h : ValidX (pre ++ .inr (.overridden a t k m) :: post)) :
+    noted ((evs pre t).flatMap notes) "recorded" k = false := by
+  have := h.holdsNamed "override_comes_before_the_record"
+  dsimp only at this
+  simpa using this
+
+/-- **An override names an action that was asked about.** -/
+theorem an_override_names_an_action {pre post : actions.XLog} {a t k : Id} {m : Meta}
+    (h : ValidX (pre ++ .inr (.overridden a t k m) :: post)) :
     noted ((evs pre t).flatMap notes) "action" k = true := by
   have := h.holdsNamed "action_must_exist"
   dsimp only at this

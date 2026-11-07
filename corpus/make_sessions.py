@@ -526,6 +526,10 @@ def action_rules():
         a(ANN, "action.reject", W1),                                  # action_is_answered_once
         ev(BEN, W2, mode="action_allowed"),                           # accepted, at 4
         a(CY, "action.reject", W2, meta="completes the task"),        # accepted, at 5
+        a(DEE, "action.override", W2),                                # only_overriders_can_override
+        cmd(ANN, "overrider.name", S1, overrider_id=DEE),             # accepted
+        a(DEE, "action.override", W2, meta="code typed"),             # accepted
+        a(DEE, "action.override", W2),                                # action_is_overridden_once
         ev(CY, W9),                                                   # accepted, at 6
         a(CY, "action.approve", W9),                                  # asker_must_not_answer
         a(ANN, "action.reject", W9, meta="no"),                       # accepted, at 7
