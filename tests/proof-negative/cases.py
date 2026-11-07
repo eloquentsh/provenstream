@@ -192,7 +192,7 @@ ASKER_ANSWERS = {
     "edits": [
         ("Action/Layer.lean",
          """               | .approved a _ k _ | .rejected a _ k _ => !w.contains ("action", k, a) | _ => true⟩,""",
-         """               | .approved .. | .rejected .. => true | _ => true⟩,"""),
+         """               | .approved .. => true | .rejected a _ k _ => !w.contains ("action", k, a) | _ => true⟩,"""),
     ],
     "target": "Action.Theorems",
     "fails_in": "the_asker_never_approves",
