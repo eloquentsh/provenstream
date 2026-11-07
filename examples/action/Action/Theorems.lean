@@ -5,9 +5,10 @@ import Action.Layer
 /-!
 # The action layer's guarantees
 
-Each holds of every valid log of the layer, and follows from the rules that held when its events were accepted. An approval comes
-only from the opener or a named evaluator, never from whoever asked. A forced action is approved only by the opener. An action gets
-one answer. The engine cannot see whether a broker obeys an answer, so nothing here says what ran.
+Each holds of every valid log of the layer, and follows from the rules that held when its events were accepted. An answer comes
+only from the opener or a named evaluator, never from whoever asked, and an action gets one. `mayRun` says what a broker may run: no
+answer means no run, and a rejection stops an action unless its mode is `action_allowed`. The engine cannot see whether a broker obeys, so
+nothing here says what ran.
 -/
 
 namespace Action
@@ -137,22 +138,6 @@ theorem the_asker_never_rejects {pre post : actions.XLog} {a t k : Id} {m : Meta
   dsimp only at this
   simpa using this
 
-/-- **Only the opener approves a forced action**: when the action was asked about as forced earlier on the stream, whoever approves
-it is the stream's opener. This is the gate on what no evaluator may pass. -/
-theorem only_the_opener_approves_a_forced_action {pre post : actions.XLog} {a b t k : Id} {c : String} {m m' : Meta}
-    (h : ValidX (pre ++ .inr (.approved a t k m) :: post))
-    (hf : (.inr (ActionEvent.evaluated b t k c "true" m') : actions.XEv) ∈ pre) :
-    Past.opener (cores pre) t = some a := by
-  have := h.holdsNamed "forced_needs_the_opener"
-  dsimp only at this
-  simp only [read_notes, Commands.evStream_mk, Bool.or_eq_true, Bool.not_eq_true'] at this
-  have hn : noted ((evs pre t).flatMap notes) "forced" k = true :=
-    noted_iff.mpr ⟨"", List.mem_flatMap.mpr ⟨ActionEvent.evaluated b t k c "true" m',
-      mem_evs.mpr ⟨hf, rfl⟩, by simp [notes]⟩⟩
-  rcases this with hb | ho
-  · rw [hn] at hb; exact absurd hb (by decide)
-  · simpa using ho
-
 /-- **An action is answered once**: at an approval it has no answer. -/
 theorem an_approved_action_had_no_answer {pre post : actions.XLog} {a t k : Id} {m : Meta}
     (h : ValidX (pre ++ .inr (.approved a t k m) :: post)) :
@@ -180,6 +165,37 @@ theorem a_rejected_action_is_never_approved {pre mid post : actions.XLog} {a b t
     simp only [answered, hr, Bool.or_true]
   rw [ha] at hn
   exact absurd hn (by decide)
+
+/-! ## What may run -/
+
+/-- **An action with no answer may not run**, in any mode. -/
+theorem no_answer_no_run {w : List Note} {k : String} (h : answered w k = false) : mayRun w k = false := by
+  simp only [answered, Bool.or_eq_false_iff] at h
+  simp [mayRun, h.1, h.2]
+
+/-- **An approved action may run**, in any mode. -/
+theorem an_approved_action_may_run {w : List Note} {k : String} (h : noted w "approved" k = true) : mayRun w k = true := by
+  simp [mayRun, h]
+
+/-- **Without `action_allowed`, a rejection stops the action**: an action that was not approved and whose mode is not noted as
+`action_allowed` may not run. -/
+theorem a_rejection_stops_the_action_without_action_allowed {w : List Note} {k : String} (ha : noted w "approved" k = false)
+    (hm : w.contains ("mode", k, actionAllowed) = false) : mayRun w k = false := by
+  unfold mayRun
+  rw [ha, hm]
+  simp
+
+/-- **In `action_allowed`, a rejection is overridden**, and it stays on the stream. -/
+theorem action_allowed_overrides_a_rejection {w : List Note} {k : String} (hr : noted w "rejected" k = true)
+    (hm : w.contains ("mode", k, actionAllowed) = true) : mayRun w k = true := by
+  unfold mayRun
+  rw [hr, hm]
+  simp
+
+/-- **A mode is fixed when the action is asked about**: the only notes of a mode come from `action.evaluate`, and its id is new then. -/
+theorem a_mode_note_is_an_evaluation {e : ActionEvent} {k q : String} (h : ("mode", k, q) ∈ notes e) :
+    ∃ a t c m, e = .evaluated a t k c q m := by
+  cases e <;> simp_all [notes]
 
 /-! ## The core's guarantees, here -/
 

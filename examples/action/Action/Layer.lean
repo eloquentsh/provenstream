@@ -5,19 +5,22 @@ import Provenstream.Interface
 /-!
 # Action: a layer on the core
 
-A gate in front of a browser. Reads never reach this stream. Each action that could change something is asked about here before it
-runs, and someone answers.
+A gate in front of a browser. Reads of the page never reach this stream. Every other action is asked about here before it runs, and an
+evaluator says whether it gets ready for the task or completes it. Getting ready is approved. Completing is rejected.
 
 - `evaluator.name {stream_id, evaluator_id, meta?}` -> `evaluator.named`: the opener names an evaluator other than itself, once each.
-- `action.evaluate {stream_id, action_id, context_url, forced, meta?}` -> `action.evaluated`: anyone asks about one action, its id new.
-  `context_url` pins a file holding everything an evaluator reads. `forced` is `true` for an action only the opener may approve.
+- `action.evaluate {stream_id, action_id, context_url, mode, meta?}` -> `action.evaluated`: anyone asks about one action, its id new.
+  `context_url` pins a file holding everything an evaluator reads. `mode` is `readonly` or `action_allowed`.
 - `action.approve {stream_id, action_id, meta?}` -> `action.approved`, `action.reject {stream_id, action_id, meta?}` -> `action.rejected`:
-  the opener or an evaluator answers, once. Whoever asked never answers. Only the opener approves a forced action.
+  the opener or an evaluator answers, once. Whoever asked never answers.
+
+An action may run once it has an answer: an approval in any mode, or a rejection in `action_allowed`, which overrides it. A read of a
+stream names these in `runnable`. An action with no answer may not run, so an evaluator's opinion is always on the stream first.
 
 An engine cannot see a page or fetch a URL, and it cannot stop a browser. It checks the form of the pin and nothing about the bytes.
-Whoever reads the URL checks the bytes against the pin. A broker runs an action only when the stream holds its approval.
+Whoever reads the URL checks the bytes against the pin. A broker runs an action only when `runnable` names it.
 
-The memory is the notes the events make: `("evaluator", "", e)`, `("action", k, asker)`, `("forced", k, "")`, `("approved", k, who)` and
+The memory is the notes the events make: `("evaluator", "", e)`, `("action", k, asker)`, `("mode", k, mode)`, `("approved", k, who)` and
 `("rejected", k, who)`.
 -/
 
@@ -53,21 +56,23 @@ def pinned (u : String) : Bool :=
   | some _ => true
   | none => false
 
-def validForced (s : String) : Bool := s == "true" || s == "false"
+def readonly : String := "readonly"
+def actionAllowed : String := "action_allowed"
+def validMode (s : String) : Bool := s == readonly || s == actionAllowed
 
 def urlKind : Kind := .text "url" validUrl
-def forcedKind : Kind := .text "forced" validForced
+def modeKind : Kind := .text "mode" validMode
 
 inductive ActionCommand where
   | nameEvaluator (stream evaluator : Id) («meta» : Meta)
-  | evaluate (stream action : Id) (context forced : String) («meta» : Meta)
+  | evaluate (stream action : Id) (context mode : String) («meta» : Meta)
   | approve (stream action : Id) («meta» : Meta)
   | reject (stream action : Id) («meta» : Meta)
   deriving DecidableEq
 
 inductive ActionEvent where
   | evaluatorNamed (actor stream evaluator : Id) («meta» : Meta)
-  | evaluated (actor stream action : Id) (context forced : String) («meta» : Meta)
+  | evaluated (actor stream action : Id) (context mode : String) («meta» : Meta)
   | approved (actor stream action : Id) («meta» : Meta)
   | rejected (actor stream action : Id) («meta» : Meta)
   deriving DecidableEq
@@ -76,7 +81,7 @@ abbrev Note := String × String × String
 
 def notes : ActionEvent → List Note
   | .evaluatorNamed _ _ e _ => [("evaluator", "", e)]
-  | .evaluated a _ k _ f _ => ("action", k, a) :: (if f == "true" then [("forced", k, "")] else [])
+  | .evaluated a _ k _ f _ => [("action", k, a), ("mode", k, f)]
   | .approved a _ k _ => [("approved", k, a)]
   | .rejected a _ k _ => [("rejected", k, a)]
 
@@ -85,6 +90,14 @@ def addNotes (st : List Note) (e : ActionEvent) : List Note := st ++ notes e
 def noted (w : List Note) (what k : String) : Bool := w.any fun n => n.1 == what && n.2.1 == k
 
 def answered (w : List Note) (k : String) : Bool := noted w "approved" k || noted w "rejected" k
+
+/-- The action may run: approved in any mode, or rejected in `action_allowed`, which overrides the rejection. No answer, no run. -/
+def mayRun (w : List Note) (k : String) : Bool :=
+  noted w "approved" k || (noted w "rejected" k && w.contains ("mode", k, actionAllowed))
+
+/-- The actions that may run, in the order they were asked about. -/
+def runnable (w : List Note) : List String :=
+  w.filterMap fun n => if n.1 == "action" && mayRun w n.2.1 then some n.2.1 else none
 
 def thirdOf (w : List Note) (what : String) : List String := w.filterMap fun n => if n.1 == what then some n.2.2 else none
 
@@ -124,7 +137,7 @@ abbrev actions : Layer where
   schema := [{ name := "evaluator.name", event := "evaluator.named", who := some "the stream's opener",
                fields := [("stream_id", .uuid), ("evaluator_id", .uuid), ("meta", .metaOpt)] },
              { name := "action.evaluate", event := "action.evaluated", who := some "anyone",
-               fields := [("stream_id", .uuid), ("action_id", .uuid), ("context_url", urlKind), ("forced", forcedKind), ("meta", .metaOpt)] },
+               fields := [("stream_id", .uuid), ("action_id", .uuid), ("context_url", urlKind), ("mode", modeKind), ("meta", .metaOpt)] },
              { name := "action.approve", event := "action.approved", who := some "the opener or an evaluator, never whoever asked",
                fields := [("stream_id", .uuid), ("action_id", .uuid), ("meta", .metaOpt)] },
              { name := "action.reject", event := "action.rejected", who := some "the opener or an evaluator, never whoever asked",
@@ -144,7 +157,9 @@ abbrev actions : Layer where
   readJ st := [("evaluators", .arr ((thirdOf st "evaluator").map .str)),
                ("actions", pairsOf st "action" "asker_id"),
                ("approved", pairsOf st "approved" "by"),
-               ("rejected", pairsOf st "rejected" "by")]
+               ("rejected", pairsOf st "rejected" "by"),
+               ("modes", pairsOf st "mode" "mode"),
+               ("runnable", .arr ((runnable st).map .str))]
   rules := [⟨"only_opener_can_name_evaluators", ["evaluator.name"], fun v _ e => match e with
                | .evaluatorNamed a .. => v.opener == some a | _ => true⟩,
             ⟨"evaluator_must_not_be_the_opener", ["evaluator.name"], fun v _ e => match e with
@@ -161,8 +176,6 @@ abbrev actions : Layer where
                | .approved a .. | .rejected a .. => v.opener == some a || w.contains ("evaluator", "", a) | _ => true⟩,
             ⟨"asker_must_not_answer", ["action.approve", "action.reject"], fun _ w e => match e with
                | .approved a _ k _ | .rejected a _ k _ => !w.contains ("action", k, a) | _ => true⟩,
-            ⟨"forced_needs_the_opener", ["action.approve"], fun v w e => match e with
-               | .approved a _ k _ => !noted w "forced" k || v.opener == some a | _ => true⟩,
             ⟨"action_is_answered_once", ["action.approve", "action.reject"], fun _ w e => match e with
                | .approved _ _ k _ | .rejected _ _ k _ => !answered w k | _ => true⟩]
 

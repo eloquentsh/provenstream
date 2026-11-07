@@ -32,12 +32,23 @@ def C : String :=
 #guard validUrl "http://127.0.0.1:8791/c.json" && !pinned "http://127.0.0.1:8791/c.json"
 #guard !pinned "https://example.org/x#sha256=abc"
 #guard !validUrl "not a url"
-#guard validForced "true" && validForced "false" && !validForced "maybe"
+#guard validMode "readonly" && validMode "action_allowed" && !validMode "admin"
+
+/-! What may run. -/
+
+def ro : List Note := [("action", K1, bro), ("mode", K1, readonly)]
+def aa : List Note := [("action", K1, bro), ("mode", K1, actionAllowed)]
+#guard !mayRun ro K1 && !mayRun aa K1                                       -- no answer, no run, in either mode
+#guard mayRun (ro ++ [("approved", K1, jev)]) K1 && mayRun (aa ++ [("approved", K1, jev)]) K1
+#guard !mayRun (ro ++ [("rejected", K1, jev)]) K1                           -- a rejection stops it
+#guard mayRun (aa ++ [("rejected", K1, jev)]) K1                            -- action_allowed overrides it
+#guard runnable (aa ++ [("rejected", K1, jev)]) == [K1]
+#guard runnable (ro ++ [("rejected", K1, jev)]) == []
 
 abbrev Sv := actions.service
 def core (c : Id) (cmd : Command) (f : Fresh := []) : Sv.Req := .inl (c, cmd, f)
 def ck (c : Id) (cmd : ActionCommand) (f : Fresh := []) : Sv.Req := .inr (c, cmd, f)
-def ask (k : Id) (f : String := "false") : ActionCommand := .evaluate S k C f none
+def ask (k : Id) (f : String := "readonly") : ActionCommand := .evaluate S k C f none
 
 def story : List (Sv.Req × Option String) :=
   [ (ck bro (ask K1), some "stream_must_exist"),                                          -- the core's admission
@@ -47,16 +58,15 @@ def story : List (Sv.Req × Option String) :=
     (ck ann (.nameEvaluator S jev none), none),
     (ck ann (.nameEvaluator S jev none), some "evaluator_is_named_once"),
     (ck jev (.approve S K1 none), some "action_must_exist"),
-    (ck bro (.evaluate S K1 "https://example.org/c.json" "false" none), some "context_url_must_be_pinned"),
+    (ck bro (.evaluate S K1 "https://example.org/c.json" "readonly" none), some "context_url_must_be_pinned"),
     (ck bro (ask K1), none),
     (ck bro (ask K1), some "action_id_must_be_new"),
     (ck ben (.approve S K1 none), some "only_opener_or_evaluator_can_answer"),
     (ck bro (.approve S K1 none), some "only_opener_or_evaluator_can_answer"),
     (ck jev (.approve S K1 (some "score 120")), none),                                    -- an evaluator approves
     (ck ann (.reject S K1 none), some "action_is_answered_once"),
-    (ck bro (ask K2 "true"), none),                                                       -- forced
-    (ck jev (.approve S K2 none), some "forced_needs_the_opener"),
-    (ck ann (.approve S K2 (some "yes")), none),                                          -- the opener may
+    (ck bro (ask K2 "action_allowed"), none),
+    (ck jev (.reject S K2 (some "completes the task")), none),                            -- recorded, then overridden
     (ck jev (ask K3), none),                                                              -- an evaluator asks
     (ck jev (.approve S K3 none), some "asker_must_not_answer"),
     (ck ann (.reject S K3 (some "no")), none),

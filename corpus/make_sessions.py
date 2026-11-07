@@ -508,8 +508,8 @@ def action_rules():
     pin = "https://files.example.org/b/" + C64 + "#sha256=" + C64 + "&name=context.json"
     def a(actor, name, k, **kv):
         return cmd(actor, name, S1, action_id=k, **kv)
-    def ev(actor, k, forced="false"):
-        return a(actor, "action.evaluate", k, context_url=pin, forced=forced)
+    def ev(actor, k, mode="readonly"):
+        return a(actor, "action.evaluate", k, context_url=pin, mode=mode)
     return [
         ev(BEN, W1),                                                  # stream_must_exist (admission)
         open_(ANN, S1, url=murl),                                     # accepted, at 0
@@ -518,15 +518,14 @@ def action_rules():
         cmd(ANN, "evaluator.name", S1, evaluator_id=CY),              # accepted, at 1
         cmd(ANN, "evaluator.name", S1, evaluator_id=CY),              # evaluator_is_named_once
         a(CY, "action.approve", W1),                                  # action_must_exist
-        a(BEN, "action.evaluate", W1, context_url="https://files.example.org/c.json", forced="false"),  # context_url_must_be_pinned
+        a(BEN, "action.evaluate", W1, context_url="https://files.example.org/c.json", mode="readonly"),  # context_url_must_be_pinned
         ev(BEN, W1),                                                  # accepted, at 2
         ev(BEN, W1),                                                  # action_id_must_be_new
         a(BEN, "action.approve", W1),                                 # only_opener_or_evaluator_can_answer
         a(CY, "action.approve", W1, meta="score 120"),                # accepted, at 3
         a(ANN, "action.reject", W1),                                  # action_is_answered_once
-        ev(BEN, W2, forced="true"),                                   # accepted, at 4
-        a(CY, "action.approve", W2),                                  # forced_needs_the_opener
-        a(ANN, "action.approve", W2),                                 # accepted, at 5
+        ev(BEN, W2, mode="action_allowed"),                           # accepted, at 4
+        a(CY, "action.reject", W2, meta="completes the task"),        # accepted, at 5
         ev(CY, W9),                                                   # accepted, at 6
         a(CY, "action.approve", W9),                                  # asker_must_not_answer
         a(ANN, "action.reject", W9, meta="no"),                       # accepted, at 7
