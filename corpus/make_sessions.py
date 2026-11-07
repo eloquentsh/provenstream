@@ -5,7 +5,7 @@
 a fresh engine and seals the outputs; `corpus/replay` checks them byte for byte.
 
 Each session's prefix names its engine: `core-*` the core's (`.lake/build/bin/core-engine`), `log-*`, `principals-*`,
-`tasks-*`, `work-*`, `meeting-*` and `post-*` the examples' (`examples/<name>`), `tower-*` the three-level tower's (`tests/tower`). The `core-*`
+`tasks-*`, `work-*`, `meeting-*`, `post-*` and `action-*` the examples' (`examples/<name>`), `tower-*` the three-level tower's (`tests/tower`). The `core-*`
 sessions are also the stream interface's (`host/provenstream/interface/`, byte-identical copies): every engine must
 answer them as the core does.
 
@@ -502,6 +502,37 @@ def meeting_rules():
     ]
 
 
+def action_rules():
+    """The action layer: every layer rule refusing, the core's admission on its events, and every command accepted."""
+    murl = REPO + "/tree/" + C40 + "/examples/action"
+    pin = "https://files.example.org/b/" + C64 + "#sha256=" + C64 + "&name=context.json"
+    def a(actor, name, k, **kv):
+        return cmd(actor, name, S1, action_id=k, **kv)
+    def ev(actor, k, forced="false"):
+        return a(actor, "action.evaluate", k, context_url=pin, forced=forced)
+    return [
+        ev(BEN, W1),                                                  # stream_must_exist (admission)
+        open_(ANN, S1, url=murl),                                     # accepted, at 0
+        cmd(BEN, "evaluator.name", S1, evaluator_id=CY),              # only_opener_can_name_evaluators
+        cmd(ANN, "evaluator.name", S1, evaluator_id=ANN),             # evaluator_must_not_be_the_opener
+        cmd(ANN, "evaluator.name", S1, evaluator_id=CY),              # accepted, at 1
+        cmd(ANN, "evaluator.name", S1, evaluator_id=CY),              # evaluator_is_named_once
+        a(CY, "action.approve", W1),                                  # action_must_exist
+        a(BEN, "action.evaluate", W1, context_url="https://files.example.org/c.json", forced="false"),  # context_url_must_be_pinned
+        ev(BEN, W1),                                                  # accepted, at 2
+        ev(BEN, W1),                                                  # action_id_must_be_new
+        a(BEN, "action.approve", W1),                                 # only_opener_or_evaluator_can_answer
+        a(CY, "action.approve", W1, meta="score 120"),                # accepted, at 3
+        a(ANN, "action.reject", W1),                                  # action_is_answered_once
+        ev(BEN, W2, forced="true"),                                   # accepted, at 4
+        a(CY, "action.approve", W2),                                  # forced_needs_the_opener
+        a(ANN, "action.approve", W2),                                 # accepted, at 5
+        ev(CY, W9),                                                   # accepted, at 6
+        a(CY, "action.approve", W9),                                  # asker_must_not_answer
+        a(ANN, "action.reject", W9, meta="no"),                       # accepted, at 7
+    ]
+
+
 def post_commands(stream):
     """Post commands on `stream`: `m(actor, name, post_id, **params)`."""
     return lambda actor, name, k, **kv: cmd(actor, name, stream, post_id=k, **kv)
@@ -616,6 +647,7 @@ def main():
     write("work-malformed", work_malformed())
     write("meeting-rules", meeting_rules())
     write("post-rules", post_rules())
+    write("action-rules", action_rules())
     write("tower-rules", tower_rules())
 
 

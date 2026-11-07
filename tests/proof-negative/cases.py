@@ -181,4 +181,23 @@ ANYONE_ASKS = {
     "fails_at": None,
 }
 
-CASES = [ANYONE_OPENS, ANYONE_ASSIGNS, ANYONE_FINISHES, OTHER_CLOSES, CLOSE_TWICE, TAKES_A_CORE_NAME, ANYONE_ASKS]
+# The action layer (examples/action): the rule the gate rests on.
+
+EVALUATOR_APPROVES_FORCED = {
+    "name": "evaluator-approves-forced",
+    "what": "the action layer's rule forced_needs_the_opener lets anyone approve a forced action; the theorem that only the "
+            "opener approves one (only_the_opener_approves_a_forced_action) must fail",
+    "layer": "examples/action",
+    "lib": "Action",
+    "edits": [
+        ("Action/Layer.lean",
+         """               | .approved a _ k _ => !noted w "forced" k || v.opener == some a | _ => true⟩,""",
+         """               | .approved .. => true | _ => true⟩,"""),
+    ],
+    "target": "Action.Theorems",
+    "fails_in": "only_the_opener_approves_a_forced_action",
+    "fails_at": None,
+}
+
+CASES = [ANYONE_OPENS, ANYONE_ASSIGNS, ANYONE_FINISHES, OTHER_CLOSES, CLOSE_TWICE, TAKES_A_CORE_NAME, ANYONE_ASKS,
+         EVALUATOR_APPROVES_FORCED]

@@ -29,9 +29,9 @@ cd "$ROOT"
 step() { printf '\n== %s\n' "$*"; }
 
 sources() {
-  find Provenstream examples/log/Log examples/principals/Principals examples/tasks/Tasks examples/work/Work examples/meeting/Meeting examples/post/Post \
+  find Provenstream examples/log/Log examples/principals/Principals examples/tasks/Tasks examples/work/Work examples/meeting/Meeting examples/post/Post examples/action/Action \
     examples/solochangecontrol/SoloChangeControl tests/tower/Tower -name '*.lean' | sort
-  ls ./*.lean examples/log/*.lean examples/principals/*.lean examples/tasks/*.lean examples/work/*.lean examples/meeting/*.lean examples/post/*.lean \
+  ls ./*.lean examples/log/*.lean examples/principals/*.lean examples/tasks/*.lean examples/work/*.lean examples/meeting/*.lean examples/post/*.lean examples/action/*.lean \
     examples/solochangecontrol/*.lean tests/tower/*.lean \
     | grep -v 'Revision.lean$' | grep -v ProvenstreamCheck.lean
 }
@@ -70,7 +70,7 @@ done
 echo "$(wc -w <<<"$gaps" | tr -d ' ') gaps, each stated in Theorems.lean and tabled in docs/tcb.md"
 
 step "7. the examples"
-for d in examples/log examples/principals examples/tasks examples/work examples/meeting examples/post examples/solochangecontrol; do
+for d in examples/log examples/principals examples/tasks examples/work examples/meeting examples/post examples/action examples/solochangecontrol; do
   printf -- '-- %s\n' "$d"
   PYTHONPATH=host "$PY" -m provenstream.project "$d"
 done
