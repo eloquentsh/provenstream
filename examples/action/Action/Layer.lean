@@ -9,8 +9,9 @@ A gate in front of a browser. Reads of the page never reach this stream. Every o
 evaluator says whether it gets ready for the task or completes it. Getting ready is approved. Completing is rejected.
 
 - `evaluator.name {stream_id, evaluator_id, meta?}` -> `evaluator.named`: the opener names an evaluator other than itself, once each.
-- `action.evaluate {stream_id, action_id, context_url, mode, meta?}` -> `action.evaluated`: anyone asks about one action, its id new.
-  `context_url` pins a file holding everything an evaluator reads. `mode` is `readonly` or `action_allowed`.
+- `action.evaluate {stream_id, action_id, context_url, page_url, mode, meta?}` -> `action.evaluated`: anyone asks about one action, its id
+  new. `context_url` pins a file holding everything an evaluator reads. `page_url` pins the page as markdown, with the target marked, or
+  is `none` for an action on no page. `mode` is `readonly` or `action_allowed`.
 - `action.approve {stream_id, action_id, meta?}` -> `action.approved`, `action.reject {stream_id, action_id, meta?}` -> `action.rejected`:
   the opener or an evaluator answers, once. Whoever asked never answers.
 
@@ -56,23 +57,27 @@ def pinned (u : String) : Bool :=
   | some _ => true
   | none => false
 
+/-- A page URL: a URL, or `none` for an action on no page, like opening a tab. -/
+def validPageUrl (s : String) : Bool := s == "none" || validUrl s
+
 def readonly : String := "readonly"
 def actionAllowed : String := "action_allowed"
 def validMode (s : String) : Bool := s == readonly || s == actionAllowed
 
 def urlKind : Kind := .text "url" validUrl
+def pageUrlKind : Kind := .text "page_url" validPageUrl
 def modeKind : Kind := .text "mode" validMode
 
 inductive ActionCommand where
   | nameEvaluator (stream evaluator : Id) («meta» : Meta)
-  | evaluate (stream action : Id) (context mode : String) («meta» : Meta)
+  | evaluate (stream action : Id) (context page mode : String) («meta» : Meta)
   | approve (stream action : Id) («meta» : Meta)
   | reject (stream action : Id) («meta» : Meta)
   deriving DecidableEq
 
 inductive ActionEvent where
   | evaluatorNamed (actor stream evaluator : Id) («meta» : Meta)
-  | evaluated (actor stream action : Id) (context mode : String) («meta» : Meta)
+  | evaluated (actor stream action : Id) (context page mode : String) («meta» : Meta)
   | approved (actor stream action : Id) («meta» : Meta)
   | rejected (actor stream action : Id) («meta» : Meta)
   deriving DecidableEq
@@ -81,7 +86,7 @@ abbrev Note := String × String × String
 
 def notes : ActionEvent → List Note
   | .evaluatorNamed _ _ e _ => [("evaluator", "", e)]
-  | .evaluated a _ k _ f _ => [("action", k, a), ("mode", k, f)]
+  | .evaluated a _ k _ _ f _ => [("action", k, a), ("mode", k, f)]
   | .approved a _ k _ => [("approved", k, a)]
   | .rejected a _ k _ => [("rejected", k, a)]
 
@@ -125,31 +130,31 @@ abbrev actions : Layer where
   Ev := ActionEvent
   toRequest
     | .evaluatorNamed a t e m => (a, .nameEvaluator t e m)
-    | .evaluated a t k c f m => (a, .evaluate t k c f m)
+    | .evaluated a t k c g f m => (a, .evaluate t k c g f m)
     | .approved a t k m => (a, .approve t k m)
     | .rejected a t k m => (a, .reject t k m)
   ofRequest
     | (a, .nameEvaluator t e m) => .evaluatorNamed a t e m
-    | (a, .evaluate t k c f m) => .evaluated a t k c f m
+    | (a, .evaluate t k c g f m) => .evaluated a t k c g f m
     | (a, .approve t k m) => .approved a t k m
     | (a, .reject t k m) => .rejected a t k m
   stream | .nameEvaluator t .. | .evaluate t .. | .approve t .. | .reject t .. => t
   schema := [{ name := "evaluator.name", event := "evaluator.named", who := some "the stream's opener",
                fields := [("stream_id", .uuid), ("evaluator_id", .uuid), ("meta", .metaOpt)] },
              { name := "action.evaluate", event := "action.evaluated", who := some "anyone",
-               fields := [("stream_id", .uuid), ("action_id", .uuid), ("context_url", urlKind), ("mode", modeKind), ("meta", .metaOpt)] },
+               fields := [("stream_id", .uuid), ("action_id", .uuid), ("context_url", urlKind), ("page_url", pageUrlKind), ("mode", modeKind), ("meta", .metaOpt)] },
              { name := "action.approve", event := "action.approved", who := some "the opener or an evaluator, never whoever asked",
                fields := [("stream_id", .uuid), ("action_id", .uuid), ("meta", .metaOpt)] },
              { name := "action.reject", event := "action.rejected", who := some "the opener or an evaluator, never whoever asked",
                fields := [("stream_id", .uuid), ("action_id", .uuid), ("meta", .metaOpt)] }]
   toVals
     | .nameEvaluator t e m => ("evaluator.name", [.s t, .s e, .m m])
-    | .evaluate t k c f m => ("action.evaluate", [.s t, .s k, .s c, .s f, .m m])
+    | .evaluate t k c g f m => ("action.evaluate", [.s t, .s k, .s c, .s g, .s f, .m m])
     | .approve t k m => ("action.approve", [.s t, .s k, .m m])
     | .reject t k m => ("action.reject", [.s t, .s k, .m m])
   ofVals
     | "evaluator.name", [.s t, .s e, .m m] => some (.nameEvaluator t e m)
-    | "action.evaluate", [.s t, .s k, .s c, .s f, .m m] => some (.evaluate t k c f m)
+    | "action.evaluate", [.s t, .s k, .s c, .s g, .s f, .m m] => some (.evaluate t k c g f m)
     | "action.approve", [.s t, .s k, .m m] => some (.approve t k m)
     | "action.reject", [.s t, .s k, .m m] => some (.reject t k m)
     | _, _ => none
@@ -169,7 +174,9 @@ abbrev actions : Layer where
             ⟨"action_id_must_be_new", ["action.evaluate"], fun _ w e => match e with
                | .evaluated _ _ k .. => !noted w "action" k | _ => true⟩,
             ⟨"context_url_must_be_pinned", ["action.evaluate"], fun _ _ e => match e with
-               | .evaluated _ _ _ c _ _ => pinned c | _ => true⟩,
+               | .evaluated _ _ _ c _ _ _ => pinned c | _ => true⟩,
+            ⟨"page_url_must_be_pinned", ["action.evaluate"], fun _ _ e => match e with
+               | .evaluated _ _ _ _ g _ _ => g == "none" || pinned g | _ => true⟩,
             ⟨"action_must_exist", ["action.approve", "action.reject"], fun _ w e => match e with
                | .approved _ _ k _ | .rejected _ _ k _ => noted w "action" k | _ => true⟩,
             ⟨"only_opener_or_evaluator_can_answer", ["action.approve", "action.reject"], fun v w e => match e with
