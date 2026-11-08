@@ -11,8 +11,11 @@ neither developers of the change nor the opener, publish a screen and their own 
 cuts off incoming work, and merges or abandons the change, once. Commands are intent: `merged` is final whether or not
 the merge in git succeeds, and a continuation is a fresh change.
 
-- `change.create {stream_id, change_id, from_revision_url, meta?}` → `change.created`: the opener creates a change,
-  its id new on the stream, starting from a revision.
+- `change.create {stream_id, change_id, from_revision_url, harness_revision_url?, meta?}` → `change.created`: the
+  opener creates a change, its id new on the stream, starting from a revision, and optionally under a harness
+  revision: the working directory the change is worked in, which every developer the opener branches starts from as
+  well. The harness revision is a revision of the harness, not of the change, so it is not among the revisions
+  `revisions_must_be_unique` judges.
 - `change.branch {stream_id, change_id, developer_id, branch_revision_url, meta?}` → `change.branched`: the opener
   hands a developer other than itself, and not a reviewer of the change, a fresh revision to push from, once per
   developer, before the pull.
@@ -33,10 +36,10 @@ at, and whether it descends from the change's starting revision, is the harness'
 
 Every permission rests on the core's `v.opener`: the opener creates, branches, pulls and decides; the developers are
 whom the opener branched; the reviewers are everyone else. The memory is the notes the events make (`notes`), in
-order: `("change", k, from)`, `("developer", k, developer)` and `("branch", k, branch)`, `("pushed", k, pushed)`,
-`("pulled", k, "")`, `("reviewer", k, reviewer)` and `("reviewed", k, reviewed)`, `("merged", k, merged)`,
-`("abandoned", k, "")`. A read of a stream adds `changes`, `developers`, `branches`, `pushed`, `pulled`, `reviewers`,
-`reviewed`, `merged` and `abandoned`.
+order: `("change", k, from)` and, when the change has one, `("harness", k, harness)`, `("developer", k, developer)`
+and `("branch", k, branch)`, `("pushed", k, pushed)`, `("pulled", k, "")`, `("reviewer", k, reviewer)` and
+`("reviewed", k, reviewed)`, `("merged", k, merged)`, `("abandoned", k, "")`. A read of a stream adds `changes`,
+`harnesses`, `developers`, `branches`, `pushed`, `pulled`, `reviewers`, `reviewed`, `merged` and `abandoned`.
 -/
 
 namespace SoloChangeControl
@@ -53,8 +56,11 @@ def validUrl (s : String) : Bool :=
 /-- The kind of a revision or screen field. -/
 def urlKind : Kind := .text "url" validUrl
 
+/-- The kind of an optional revision field (`url?`): a URL, or absent or `null`. -/
+def urlOptKind : Kind := .textOpt "url" validUrl
+
 inductive ChangeCommand where
-  | create (stream change : Id) (start : String) («meta» : Meta)
+  | create (stream change : Id) (start : String) (harness : Option String) («meta» : Meta)
   | branch (stream change developer : Id) (start : String) («meta» : Meta)
   | push (stream change : Id) (pushed : String) («meta» : Meta)
   | pull (stream change : Id) («meta» : Meta)
@@ -64,7 +70,7 @@ inductive ChangeCommand where
   deriving DecidableEq
 
 inductive ChangeEvent where
-  | created (actor stream change : Id) (start : String) («meta» : Meta)
+  | created (actor stream change : Id) (start : String) (harness : Option String) («meta» : Meta)
   | branched (actor stream change developer : Id) (start : String) («meta» : Meta)
   | pushed (actor stream change : Id) (pushed : String) («meta» : Meta)
   | pulled (actor stream change : Id) («meta» : Meta)
@@ -73,12 +79,17 @@ inductive ChangeEvent where
   | abandoned (actor stream change : Id) («meta» : Meta)
   deriving DecidableEq
 
-/-- A note a change event makes: what (`change`, `developer`, `branch`, `pushed`, `pulled`, `reviewer`, `reviewed`,
-`merged`, `abandoned`), the change, and whom or which (a principal, a revision URL, or `""`). -/
+/-- A note a change event makes: what (`change`, `harness`, `developer`, `branch`, `pushed`, `pulled`, `reviewer`,
+`reviewed`, `merged`, `abandoned`), the change, and whom or which (a principal, a revision URL, or `""`). -/
 abbrev Note := String × String × String
 
+/-- The note a change's harness revision makes: one when the change has one, none otherwise. -/
+def harnessNotes (k : String) : Option String → List Note
+  | none => []
+  | some h => [("harness", k, h)]
+
 def notes : ChangeEvent → List Note
-  | .created _ _ k u _ => [("change", k, u)]
+  | .created _ _ k u h _ => ("change", k, u) :: harnessNotes k h
   | .branched _ _ k d u _ => [("developer", k, d), ("branch", k, u)]
   | .pushed _ _ k u _ => [("pushed", k, u)]
   | .pulled _ _ k _ => [("pulled", k, "")]
@@ -130,7 +141,7 @@ abbrev solo : Layer where
   Cmd := ChangeCommand
   Ev := ChangeEvent
   toRequest
-    | .created a t k u m => (a, .create t k u m)
+    | .created a t k u h m => (a, .create t k u h m)
     | .branched a t k d u m => (a, .branch t k d u m)
     | .pushed a t k u m => (a, .push t k u m)
     | .pulled a t k m => (a, .pull t k m)
@@ -138,7 +149,7 @@ abbrev solo : Layer where
     | .merged a t k u m => (a, .merge t k u m)
     | .abandoned a t k m => (a, .abandon t k m)
   ofRequest
-    | (a, .create t k u m) => .created a t k u m
+    | (a, .create t k u h m) => .created a t k u h m
     | (a, .branch t k d u m) => .branched a t k d u m
     | (a, .push t k u m) => .pushed a t k u m
     | (a, .pull t k m) => .pulled a t k m
@@ -147,7 +158,8 @@ abbrev solo : Layer where
     | (a, .abandon t k m) => .abandoned a t k m
   stream | .create t .. | .branch t .. | .push t .. | .pull t .. | .review t .. | .merge t .. | .abandon t .. => t
   schema := [{ name := "change.create", event := "change.created", who := some "the stream's opener",
-               fields := [("stream_id", .uuid), ("change_id", .uuid), ("from_revision_url", urlKind), ("meta", .metaOpt)] },
+               fields := [("stream_id", .uuid), ("change_id", .uuid), ("from_revision_url", urlKind),
+                          ("harness_revision_url", urlOptKind), ("meta", .metaOpt)] },
              { name := "change.branch", event := "change.branched", who := some "the stream's opener",
                fields := [("stream_id", .uuid), ("change_id", .uuid), ("developer_id", .uuid),
                           ("branch_revision_url", urlKind), ("meta", .metaOpt)] },
@@ -164,7 +176,7 @@ abbrev solo : Layer where
              { name := "change.abandon", event := "change.abandoned", who := some "the stream's opener",
                fields := [("stream_id", .uuid), ("change_id", .uuid), ("meta", .metaOpt)] }]
   toVals
-    | .create t k u m => ("change.create", [.s t, .s k, .s u, .m m])
+    | .create t k u h m => ("change.create", [.s t, .s k, .s u, .uo h, .m m])
     | .branch t k d u m => ("change.branch", [.s t, .s k, .s d, .s u, .m m])
     | .push t k u m => ("change.push", [.s t, .s k, .s u, .m m])
     | .pull t k m => ("change.pull", [.s t, .s k, .m m])
@@ -172,7 +184,7 @@ abbrev solo : Layer where
     | .merge t k u m => ("change.merge", [.s t, .s k, .s u, .m m])
     | .abandon t k m => ("change.abandon", [.s t, .s k, .m m])
   ofVals
-    | "change.create", [.s t, .s k, .s u, .m m] => some (.create t k u m)
+    | "change.create", [.s t, .s k, .s u, .uo h, .m m] => some (.create t k u h m)
     | "change.branch", [.s t, .s k, .s d, .s u, .m m] => some (.branch t k d u m)
     | "change.push", [.s t, .s k, .s u, .m m] => some (.push t k u m)
     | "change.pull", [.s t, .s k, .m m] => some (.pull t k m)
@@ -182,6 +194,7 @@ abbrev solo : Layer where
     | _, _ => none
   memory := foldMemory [] addNotes notesToJ notesFromJ notesFromJ_toJ
   readJ st := [("changes", pairsOf st "change" "from_revision_url"),
+               ("harnesses", pairsOf st "harness" "harness_revision_url"),
                ("developers", pairsOf st "developer" "developer_id"),
                ("branches", pairsOf st "branch" "branch_revision_url"),
                ("pushed", pairsOf st "pushed" "pushed_revision_url"),
@@ -193,7 +206,7 @@ abbrev solo : Layer where
   rules := [⟨"only_opener_can_create", ["change.create"], fun v _ e => match e with
                | .created a .. => v.opener == some a | _ => true⟩,
             ⟨"change_id_must_be_new", ["change.create"], fun _ w e => match e with
-               | .created _ _ k _ _ => !noted w "change" k | _ => true⟩,
+               | .created _ _ k _ _ _ => !noted w "change" k | _ => true⟩,
             ⟨"change_must_exist", ["change.branch", "change.push", "change.pull", "change.review", "change.merge",
                                    "change.abandon"],
              fun _ w e => match e with

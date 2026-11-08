@@ -51,7 +51,13 @@ theorem noted_mono {w1 w2 : List Note} {what k : String} (h : noted w1 what k = 
 
 /-! What each kind of note says of the event that made it. -/
 
-theorem change_note {e : ChangeEvent} {k q : String} (h : ("change", k, q) ∈ notes e) : ∃ a t m, e = .created a t k q m := by
+/-- A note of a change's harness revision: the change has one, and the note names it. -/
+@[simp] theorem mem_harnessNotes {k : String} {r : Option String} {n : Note} :
+    n ∈ harnessNotes k r ↔ ∃ v, r = some v ∧ n = ("harness", k, v) := by
+  cases r <;> simp [harnessNotes]
+
+theorem change_note {e : ChangeEvent} {k q : String} (h : ("change", k, q) ∈ notes e) :
+    ∃ a t r m, e = .created a t k q r m := by
   cases e <;> simp_all [notes]
 
 theorem developer_note {e : ChangeEvent} {k q : String} (h : ("developer", k, q) ∈ notes e) :
@@ -108,8 +114,8 @@ theorem mem_mem_split {α : Type} {l : List α} {x y : α} (hx : x ∈ l) (hy : 
 /-! ## Who creates, who branches, who pulls, who decides: the opener -/
 
 /-- **Every change is created by the opener**: every `change.create` in a valid log is by the stream's opener. -/
-theorem every_change_is_created_by_the_opener {pre post : solo.XLog} {a t k : Id} {u : String} {m : Meta}
-    (h : ValidX (pre ++ .inr (.created a t k u m) :: post)) : Past.opener (cores pre) t = some a := by
+theorem every_change_is_created_by_the_opener {pre post : solo.XLog} {a t k : Id} {u : String} {r : Option String}
+    {m : Meta} (h : ValidX (pre ++ .inr (.created a t k u r m) :: post)) : Past.opener (cores pre) t = some a := by
   have := h.holdsNamed "only_opener_can_create"
   dsimp only at this
   simpa using this
@@ -223,15 +229,16 @@ theorem roles_are_disjoint {log : solo.XLog} (h : ValidX log) {o t k d : Id} {u 
 /-! ## Each step once, every change created -/
 
 /-- **A change is created once** per stream: its id is new when it is created. -/
-theorem a_change_is_created_once {pre post : solo.XLog} {a t k : Id} {u : String} {m : Meta}
-    (h : ValidX (pre ++ .inr (.created a t k u m) :: post)) : noted ((evs pre t).flatMap notes) "change" k = false := by
+theorem a_change_is_created_once {pre post : solo.XLog} {a t k : Id} {u : String} {r : Option String} {m : Meta}
+    (h : ValidX (pre ++ .inr (.created a t k u r m) :: post)) :
+    noted ((evs pre t).flatMap notes) "change" k = false := by
   have := h.holdsNamed "change_id_must_be_new"
   dsimp only at this
   simpa using this
 
 /-- The change a change event is about. -/
 def item : ChangeEvent → Id
-  | .created _ _ k _ _ | .branched _ _ k _ _ _ | .pushed _ _ k _ _ | .pulled _ _ k _ | .reviewed _ _ k _ _ _
+  | .created _ _ k _ _ _ | .branched _ _ k _ _ _ | .pushed _ _ k _ _ | .pulled _ _ k _ | .reviewed _ _ k _ _ _
   | .merged _ _ k _ _ | .abandoned _ _ k _ => k
 
 /-- **Every event names a created change**: the change of every `change.branch`, `change.push`, `change.pull`,
@@ -239,7 +246,7 @@ def item : ChangeEvent → Id
 theorem every_event_names_a_created_change {pre post : solo.XLog} {x : ChangeEvent} {t : Id}
     (h : ValidX (pre ++ .inr x :: post)) (hs : solo.evStream x = t)
     (hx : match x with | .created .. => False | _ => True) :
-    ∃ a u m, (.inr (ChangeEvent.created a t (item x) u m) : solo.XEv) ∈ pre := by
+    ∃ a u r m, (.inr (ChangeEvent.created a t (item x) u r m) : solo.XEv) ∈ pre := by
   subst hs
   have := h.holdsNamed "change_must_exist"
   dsimp only at this
@@ -248,10 +255,10 @@ theorem every_event_names_a_created_change {pre post : solo.XLog} {x : ChangeEve
     cases x <;> simp_all [item]
   obtain ⟨q, hq⟩ := noted_iff.mp hn
   obtain ⟨e, hm, hs', hn'⟩ := mem_notes_evs hq
-  obtain ⟨a, t', m, rfl⟩ := change_note hn'
+  obtain ⟨a, t', r, m, rfl⟩ := change_note hn'
   simp only [Commands.evStream_mk] at hs'
   subst hs'
-  exact ⟨a, q, m, hm⟩
+  exact ⟨a, q, r, m, hm⟩
 
 /-- **A developer is branched once** per change. -/
 theorem a_developer_is_branched_once {pre post : solo.XLog} {a t k d : Id} {u : String} {m : Meta}
@@ -282,14 +289,19 @@ theorem a_change_is_pulled_once {pre post : solo.XLog} {a t k : Id} {m : Meta}
 
 /-- The revision a change event names of its change, if it names one. -/
 def revisionOf : ChangeEvent → Option (Id × String)
-  | .created _ _ k u _ | .branched _ _ k _ u _ | .pushed _ _ k u _ | .reviewed _ _ k u _ _ | .merged _ _ k u _ =>
+  | .created _ _ k u _ _ | .branched _ _ k _ u _ | .pushed _ _ k u _ | .reviewed _ _ k u _ _ | .merged _ _ k u _ =>
     some (k, u)
   | .pulled .. | .abandoned .. => none
 
 /-- An event's revision note is among its notes. -/
 theorem revision_note {x : ChangeEvent} {k u : String} (hx : revisionOf x = some (k, u)) :
     ∃ what, namesRevision what = true ∧ (what, k, u) ∈ notes x := by
-  cases x <;> simp_all [revisionOf, notes, namesRevision]
+  cases x with
+  | created a t k' u' r m =>
+    simp only [revisionOf, Option.some.injEq, Prod.mk.injEq] at hx
+    obtain ⟨rfl, rfl⟩ := hx
+    exact ⟨"change", rfl, by simp [notes]⟩
+  | _ => simp_all [revisionOf, notes, namesRevision]
 
 /-- An event naming a revision of `k` is about `k`. -/
 theorem item_of_revision {x : ChangeEvent} {k u : String} (hx : revisionOf x = some (k, u)) : item x = k := by
@@ -305,7 +317,7 @@ theorem change_noted_after {l1 l2 post : solo.XLog} {x : ChangeEvent} {k u : Str
     simp [evs_append, evs_cons_inr, List.flatMap_append, List.flatMap_cons]
   rw [hw]
   cases x with
-  | created a t k' u' m =>
+  | created a t k' u' r m =>
     simp only [revisionOf, Option.some.injEq, Prod.mk.injEq] at hx
     obtain ⟨rfl, rfl⟩ := hx
     simp [noted, notes]
@@ -334,7 +346,7 @@ theorem revisions_are_distinct {l1 l2 l3 : solo.XLog} {x y : ChangeEvent} {k u :
   have hk : noted ((evs (l1 ++ .inr x :: l2) (solo.evStream y)).flatMap notes) "change" k = true := by
     rw [hs]; exact change_noted_after (by simpa [List.append_assoc] using h) hx
   cases y with
-  | created a t k' u' m =>
+  | created a t k' u' r m =>
     -- a creation of `k` after an event naming a revision of `k`: `k` was already created
     have h2 := h.holdsNamed "change_id_must_be_new"
     dsimp only at h2
@@ -430,7 +442,7 @@ theorem no_event_once_decided {pre post : solo.XLog} {x : ChangeEvent}
     (hex : noted ((evs pre (solo.evStream x)).flatMap notes) "change" (item x) = true)
     (hdec : decided ((evs pre (solo.evStream x)).flatMap notes) (item x) = true) : False := by
   cases x with
-  | created a t k u m =>
+  | created a t k u r m =>
     have := h.holdsNamed "change_id_must_be_new"
     dsimp only at this
     simp_all [item]

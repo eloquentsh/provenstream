@@ -44,6 +44,8 @@ def C7 := rev "c7"
 def C8 := rev "c8"
 def M := rev "m"
 def M2 := rev "m2"
+/-- The harness revision a change is worked under, as the harness would name it. -/
+def H1 : String := "https://example.org/harness/commit/h1"
 def S1 : String := "https://example.org/screens/s1"
 def S2 : String := "https://example.org/screens/s2"
 def S3 : String := "https://example.org/screens/s3"
@@ -53,12 +55,12 @@ def core (c : Id) (cmd : Command) (f : Fresh := []) : Sv.Req := .inl (c, cmd, f)
 def ck (c : Id) (cmd : ChangeCommand) (f : Fresh := []) : Sv.Req := .inr (c, cmd, f)
 
 def story : List (Sv.Req × Option String) :=
-  [ (ck ann (.create S K1 R0 none), some "stream_must_exist"),                   -- the core's admission
+  [ (ck ann (.create S K1 R0 none none), some "stream_must_exist"),                   -- the core's admission
     (core ann (.streamOpen url none) [S], none),                                 -- position 0
-    (ck ben (.create S K1 R0 none), some "only_opener_can_create"),
-    (ck ann (.create S K1 R0 none) [K2], some "fresh_ids_must_match_the_command"),
-    (ck ann (.create S K1 R0 (some "the first change")), none),                  -- position 1
-    (ck ann (.create S K1 R0 none), some "change_id_must_be_new"),
+    (ck ben (.create S K1 R0 none none), some "only_opener_can_create"),
+    (ck ann (.create S K1 R0 none none) [K2], some "fresh_ids_must_match_the_command"),
+    (ck ann (.create S K1 R0 (some H1) (some "the first change")), none),        -- position 1: under a harness
+    (ck ann (.create S K1 R0 none none), some "change_id_must_be_new"),
     (ck ann (.branch S K3 cy B1 none), some "change_must_exist"),
     (ck ben (.branch S K1 cy B1 none), some "only_opener_can_branch"),
     (ck ann (.branch S K1 ann B1 none), some "developer_must_not_be_the_opener"),
@@ -95,15 +97,15 @@ def story : List (Sv.Req × Option String) :=
     (ck ann (.merge S K1 M2 none), some "change_is_decided_once"),
     (ck ann (.abandon S K1 none), some "change_is_decided_once"),
     (ck eve (.review S K1 C8 S3 none), some "change_must_be_undecided"),         -- nothing about K1 follows
-    (ck ann (.create S K2 R0 none), none),                                       -- position 12: R0 starts another change
+    (ck ann (.create S K2 R0 none none), none),                                  -- position 12: R0 starts another change
     (ck ann (.abandon S K2 (some "not worth it")), none),                        -- position 13: abandoned, no pull
     (ck ann (.branch S K2 cy B6 none), some "change_must_be_undecided"),
-    (ck ann (.create S K4 M none), none),                                        -- position 14: continues K1
+    (ck ann (.create S K4 M none none), none),                                        -- position 14: continues K1
     (ck ann (.merge S K4 M2 none), none),                                        -- position 15: alone, no pull, no push
     (ck ann (.abandon S K3 none), some "change_must_exist"),
     (core ben (.streamClose S none), some "only_opener_can_close"),
     (core ann (.streamClose S none), none),
-    (ck ann (.create S K3 R0 none), some "stream_must_be_open") ]                 -- nothing after a close
+    (ck ann (.create S K3 R0 none none), some "stream_must_be_open") ]                 -- nothing after a close
 
 def answersOk : Bool :=
   let (_, answers) := Sv.run (story.map (·.1))

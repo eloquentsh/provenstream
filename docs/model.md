@@ -207,7 +207,7 @@ handed, is the harness's check, not the proof's.
 
 | command | event | rules |
 |---|---|---|
-| `change.create {stream_id, change_id, from_revision_url, meta?}` | `change.created` | `only_opener_can_create`, `change_id_must_be_new` |
+| `change.create {stream_id, change_id, from_revision_url, harness_revision_url?, meta?}` | `change.created` | `only_opener_can_create`, `change_id_must_be_new` |
 | `change.branch {stream_id, change_id, developer_id, branch_revision_url, meta?}` | `change.branched` | `change_must_exist`, `revisions_must_be_unique`, `only_opener_can_branch`, `developer_must_not_be_the_opener`, `developer_is_branched_once`, `developer_must_not_be_a_reviewer`, `change_must_not_be_pulled`, `change_must_be_undecided` |
 | `change.push {stream_id, change_id, pushed_revision_url, meta?}` | `change.pushed` | `change_must_exist`, `revisions_must_be_unique`, `change_must_not_be_pulled`, `only_branched_developers_can_push`, `change_must_be_undecided` |
 | `change.pull {stream_id, change_id, meta?}` | `change.pulled` | `change_must_exist`, `only_opener_can_pull`, `change_is_pulled_once`, `change_must_be_undecided` |
@@ -215,7 +215,11 @@ handed, is the harness's check, not the proof's.
 | `change.merge {stream_id, change_id, merged_revision_url, meta?}` | `change.merged` | `change_must_exist`, `revisions_must_be_unique`, `only_opener_can_decide`, `change_is_decided_once` |
 | `change.abandon {stream_id, change_id, meta?}` | `change.abandoned` | `change_must_exist`, `only_opener_can_decide`, `change_is_decided_once` |
 
-A change is decided when it is merged or abandoned. The pull cuts off branches and pushes and is a prerequisite of
+A change may be created under a harness revision (`harness_revision_url`, kind `url?`: a URL, or absent or null): the
+working directory the change is worked in, which every developer the opener branches starts from as well. It is a
+revision of the harness, not of the change, so it is noted apart (`("harness", k, url)`, read back as `harnesses`) and
+is not among the revisions `revisions_must_be_unique` judges. A change is decided when it is merged or abandoned. The
+pull cuts off branches and pushes and is a prerequisite of
 nothing: the opener may merge or abandon, and a reviewer may review, with or without it. Review is optional and
 repeatable, by anyone who is neither a developer of the change nor the opener, and a reviewer is never afterwards
 branched. Every revision named on a change (its starting revision, each branch revision, every pushed, reviewed and
