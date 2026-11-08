@@ -5,7 +5,7 @@
 a fresh engine and seals the outputs; `corpus/replay` checks them byte for byte.
 
 Each session's prefix names its engine: `core-*` the core's (`.lake/build/bin/core-engine`), `log-*`, `principals-*`,
-`tasks-*`, `work-*` and `meeting-*` the examples' (`examples/<name>`), `tower-*` the three-level tower's (`tests/tower`). The `core-*`
+`tasks-*`, `work-*`, `meeting-*` and `post-*` the examples' (`examples/<name>`), `tower-*` the three-level tower's (`tests/tower`). The `core-*`
 sessions are also the stream interface's (`host/provenstream/interface/`, byte-identical copies): every engine must
 answer them as the core does.
 
@@ -502,6 +502,62 @@ def meeting_rules():
     ]
 
 
+def post_commands(stream):
+    """Post commands on `stream`: `m(actor, name, post_id, **params)`."""
+    return lambda actor, name, k, **kv: cmd(actor, name, stream, post_id=k, **kv)
+
+
+def post_rules():
+    """The post layer: every layer rule refusing, the core's admission on its events, and every command accepted."""
+    murl = REPO + "/tree/" + C40 + "/examples/post"
+    m = post_commands(S1)
+    pin = "https://files.example.org/b/" + C64 + "#sha256=" + C64 + "&name=final.activity.json"
+    pin2 = "https://files.example.org/b/" + C64[::-1] + "#sha256=" + C64[::-1] + "&name=final.activity.json"
+    screen, screen2 = "https://files.example.org/screen-1.svg", "https://files.example.org/screen-2.svg"
+    draft, draft2 = "https://files.example.org/read-1.md", "https://files.example.org/read-2.txt"
+    acct = "ann.example.org"
+    return [
+        m(ANN, "post.create", W1),                                # stream_must_exist (admission)
+        open_(ANN, S1, url=murl),                                    # accepted, at 0
+        m(BEN, "post.create", W1),                                # only_opener_can_create
+        m(ANN, "post.create", W1, meta="a reply to Ben"),         # accepted, at 1
+        m(ANN, "post.create", W1),                                # post_id_must_be_new
+        m(ANN, "post.solicit", W9, drafter_id=BEN),               # post_must_exist
+        m(CY, "post.solicit", W1, drafter_id=BEN),                # only_opener_can_solicit
+        m(ANN, "post.solicit", W1, drafter_id=ANN),               # drafter_must_not_be_the_opener
+        m(BEN, "post.draft", W1, draft_url=draft),                # only_solicited_drafters_can_draft
+        m(ANN, "post.solicit", W1, drafter_id=BEN),               # accepted, at 2
+        m(ANN, "post.solicit", W1, drafter_id=BEN),               # drafter_is_solicited_once
+        m(BEN, "post.draft", W1, draft_url=draft),                # accepted: any text file, at 3
+        m(BEN, "post.draft", W1, draft_url=draft),                # urls_must_be_unique
+        m(BEN, "post.draft", W1, draft_url=draft2),               # accepted: as often as it likes, at 4
+        m(BEN, "post.compose", W1, composed_url=pin, account=acct, screen_url=screen),  # composer_must_not_be_a_drafter
+        m(ANN, "post.compose", W1, composed_url=pin, account=acct, screen_url=screen),  # composer_must_not_be_the_opener
+        m(CY, "post.compose", W1, composed_url="https://files.example.org/final.activity.json", account=acct, screen_url=screen),  # composed_url_must_be_pinned
+        m(ANN, "post.send", W1, sent_url=pin),                    # sent_must_be_the_latest_composed: none yet
+        m(CY, "post.compose", W1, composed_url=pin, account=acct, screen_url=screen),  # accepted, at 5
+        m(ANN, "post.solicit", W1, drafter_id=CY),                # drafter_must_not_be_a_composer
+        m(ANN, "post.solicit", W1, drafter_id=DEE),               # post_must_not_be_composed
+        m(BEN, "post.draft", W1, draft_url="https://files.example.org/read-3.md"),  # post_must_not_be_composed
+        m(CY, "post.compose", W1, composed_url=pin2, account=acct, screen_url=screen2),  # accepted: a revision, at 6
+        m(ANN, "post.send", W1, sent_url=pin),                    # sent_must_be_the_latest_composed: an older one
+        m(BEN, "post.send", W1, sent_url=pin2),                   # only_opener_can_decide
+        m(ANN, "post.send", W1, sent_url=pin2, meta="send it"),   # accepted, at 7
+        m(ANN, "post.send", W1, sent_url=pin2),                   # post_is_decided_once
+        m(ANN, "post.discard", W1),                               # post_is_decided_once
+        m(ANN, "post.solicit", W1, drafter_id=EVE),               # post_must_not_be_composed: tried first
+        m(CY, "post.compose", W1, composed_url=pin + "x.activity.json", account=acct, screen_url=screen),  # post_must_be_undecided
+        m(ANN, "post.create", W2),                                # accepted, at 8
+        m(BEN, "post.discard", W2),                               # only_opener_can_decide
+        m(ANN, "post.discard", W2, meta="not needed"),            # accepted, at 9
+        m(ANN, "post.solicit", W2, drafter_id=BEN),               # post_must_be_undecided
+        read(S1),
+        close(ANN, S1),                                              # accepted, at 10
+        m(ANN, "post.create", W3),                                # stream_must_be_open (admission)
+        SCHEMA,
+    ]
+
+
 def tower_rules():
     """The tower (reviews on tasks on the core): every rule of the review layer refusing, its guard on the core's
     stream.close, the tasks layer's and the core's rules still judging at the top, and every command accepted."""
@@ -559,6 +615,7 @@ def main():
     write("work-rules", work_rules())
     write("work-malformed", work_malformed())
     write("meeting-rules", meeting_rules())
+    write("post-rules", post_rules())
     write("tower-rules", tower_rules())
 
 

@@ -11,7 +11,7 @@
 #   4. audit of the decision functions' dependency tree (scripts/Audit.lean)
 #   5. the core engine's self-test and description; it serves coreService (project.py inherits)
 #   6. every gap stated in Provenstream/Theorems.lean has a row in docs/tcb.md, and every row a statement
-#   7. the examples, each a layer on the core (examples/log, examples/principals, examples/tasks, examples/work, examples/meeting,
+#   7. the examples, each a layer on the core (examples/log, examples/principals, examples/tasks, examples/work, examples/meeting, examples/post,
 #      examples/solochangecontrol, examples/email, examples/emailtriage): build, axioms,
 #      words, imports, audit, inherits, self-test, description, interface (project.py)
 #   8. the three-level tower (tests/tower: reviews on tasks on the core): the same checks, on a layer on a layer
@@ -29,9 +29,9 @@ cd "$ROOT"
 step() { printf '\n== %s\n' "$*"; }
 
 sources() {
-  find Provenstream examples/log/Log examples/principals/Principals examples/tasks/Tasks examples/work/Work examples/meeting/Meeting \
+  find Provenstream examples/log/Log examples/principals/Principals examples/tasks/Tasks examples/work/Work examples/meeting/Meeting examples/post/Post \
     examples/solochangecontrol/SoloChangeControl examples/email/Email examples/emailtriage/EmailTriage tests/tower/Tower -name '*.lean' | sort
-  ls ./*.lean examples/log/*.lean examples/principals/*.lean examples/tasks/*.lean examples/work/*.lean examples/meeting/*.lean \
+  ls ./*.lean examples/log/*.lean examples/principals/*.lean examples/tasks/*.lean examples/work/*.lean examples/meeting/*.lean examples/post/*.lean \
     examples/solochangecontrol/*.lean examples/email/*.lean examples/emailtriage/*.lean tests/tower/*.lean \
     | grep -v 'Revision.lean$' | grep -v ProvenstreamCheck.lean
 }
@@ -70,7 +70,7 @@ done
 echo "$(wc -w <<<"$gaps" | tr -d ' ') gaps, each stated in Theorems.lean and tabled in docs/tcb.md"
 
 step "7. the examples"
-for d in examples/log examples/principals examples/tasks examples/work examples/meeting examples/solochangecontrol examples/email examples/emailtriage; do
+for d in examples/log examples/principals examples/tasks examples/work examples/meeting examples/post examples/solochangecontrol examples/email examples/emailtriage; do
   printf -- '-- %s\n' "$d"
   PYTHONPATH=host "$PY" -m provenstream.project "$d"
 done
