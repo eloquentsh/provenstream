@@ -1,0 +1,17 @@
+{
+  "name": "action",
+  "engine": "action-engine",
+  "namespaces": [
+    "Action"
+  ],
+  "layer_modules": [
+    "Action/Layer.lean",
+    "Action/Theorems.lean",
+    "Action/Examples.lean"
+  ],
+  "audit_roots": [
+    "Action.actions"
+  ],
+  "revision_module": "ActionRevision.lean",
+  "revision_def": "Action.built"
+}
