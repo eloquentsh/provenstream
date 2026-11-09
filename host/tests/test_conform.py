@@ -48,7 +48,7 @@ PROOF_RULES = {
     "task_is_approved_once", "completed_tasks_must_be_approved_before_close", "only_opener_can_create",
     "work_id_must_be_new", "work_must_exist", "work_is_assigned_once", "only_assignee_can_ask",
     "only_asked_preparers_can_reply", "only_assignee_can_decide", "work_must_be_undecided",
-    "preparer_must_not_be_the_assignee", "preparer_is_asked_once", "preparer_replies_once", "work_is_decided_once"}
+    "preparer_must_not_be_the_assignee", "preparer_is_asked_once", "work_is_decided_once"}
 
 
 def test_every_answer_code_and_reason_is_asked_for():

@@ -50,24 +50,24 @@ def story : List (Sv.Req × Option String) :=
     (wk dee (.reply S K3 none), some "work_must_exist"),
     (wk ben (.reply S K1 none), some "only_asked_preparers_can_reply"),           -- the assignee was not asked
     (wk cy (.reply S K1 (some "https://example.org/preparations/cy")), none),     -- position 6
-    (wk cy (.reply S K1 none), some "preparer_replies_once"),
+    (wk cy (.reply S K1 (some "https://example.org/preparations/cy-2")), none),   -- position 7: a later reply supersedes
     (wk cy (.complete S K1 none), some "only_assignee_can_decide"),
     (wk ann (.cancel S K1 none), some "only_assignee_can_decide"),
     (wk ben (.complete S K3 none), some "work_must_exist"),
     (wk ben (.cancel S K3 none), some "work_must_exist"),
-    (wk ben (.complete S K1 (some "done")), none),                                -- position 7: decided
+    (wk ben (.complete S K1 (some "done")), none),                                -- position 8: decided
     (wk ben (.complete S K1 none), some "work_is_decided_once"),
     (wk ben (.cancel S K1 none), some "work_is_decided_once"),
     (wk ben (.ask S K1 dee none), some "work_must_be_undecided"),                 -- nothing about K1 follows
     (wk dee (.reply S K1 none), some "work_must_be_undecided"),
-    (wk ann (.create S K2 none), none),                                           -- position 8
-    (wk ann (.assign S K2 ann none), none),                                       -- position 9: the opener assigns itself
-    (wk ann (.cancel S K2 (some "won't be done")), none),                         -- position 10: cancelled, no preparation
+    (wk ann (.create S K2 none), none),                                           -- position 9
+    (wk ann (.assign S K2 ann none), none),                                       -- position 10: the opener assigns itself
+    (wk ann (.cancel S K2 (some "won't be done")), none),                         -- position 11: cancelled, no preparation
     (wk ann (.complete S K2 none), some "work_is_decided_once"),
-    (wk ann (.create S K4 none), none),                                           -- position 11
+    (wk ann (.create S K4 none), none),                                           -- position 12
     (wk ben (.complete S K4 none), some "only_assignee_can_decide"),              -- an unassigned item
-    (wk ann (.assign S K4 ben none), none),                                       -- position 12
-    (wk ben (.complete S K4 none), none),                                         -- position 13: completed without a preparer
+    (wk ann (.assign S K4 ben none), none),                                       -- position 13
+    (wk ben (.complete S K4 none), none),                                         -- position 14: completed without a preparer
     (core ben (.streamClose S none), some "only_opener_can_close"),
     (core ann (.streamClose S none), none),
     (wk ann (.create S K3 none), some "stream_must_be_open") ]                    -- nothing after a close

@@ -73,7 +73,7 @@ of a theme run in order, as one session.
 | `log` | sequences on `examples/log`: only the opener appends; texts and meta |
 | `principals` | sequences on `examples/principals`: admins (the opener, then promoted invitees) invite, promote and summon; agents are never promoted; every declaration once |
 | `tasks` | sequences on `examples/tasks`: the opener opens and assigns, the assignee completes; a parent named by its own task_id, a task of the same stream (`parent_task_must_exist`) |
-| `work` | sequences on `examples/work`: the opener creates and assigns; the assignee asks preparers other than itself, the asked reply once, the assignee completes or cancels once; nothing about a decided item |
+| `work` | sequences on `examples/work`: the opener creates and assigns; the assignee asks preparers other than itself, the asked reply, again while the item is undecided, the assignee completes or cancels once; nothing about a decided item |
 | `tower` | sequences on the tower: reviews by the opener, and no close while a completed task awaits one |
 | `auth` | tokens: the roles, no token, an unknown token; a name that is no method is answered before any token is asked for |
 | `parse` | messages as bytes: strict JSON, one JSON-RPC 2.0 request object, ids echoed, a message over 1 MiB |

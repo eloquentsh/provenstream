@@ -373,7 +373,7 @@ def work_commands(stream):
 def work_rules():
     """The work layer: every layer rule refusing, in order where two fail, the core's admission on its events, and
     every command accepted. The opener creates and assigns (to itself too); the assignee asks preparers other than
-    itself, each once, and decides once; the asked reply once; nothing about a decided item is accepted."""
+    itself, each once, and decides once; the asked reply, again if they like; nothing about a decided item is accepted."""
     wurl = REPO + "/tree/" + C40 + "/examples/work"
     w = work_commands(S1)
     return [
@@ -401,26 +401,26 @@ def work_rules():
         w(DEE, "work.reply", W9),                                    # work_must_exist
         w(BEN, "work.reply", W1),                                    # only_asked_preparers_can_reply: the assignee
         w(CY, "work.reply", W1, meta="https://example.org/preparations/cy"),  # accepted, at 6
-        w(CY, "work.reply", W1),                                     # preparer_replies_once
+        w(CY, "work.reply", W1, meta="https://example.org/preparations/cy-2"),  # accepted: a later reply, at 7
         w(CY, "work.complete", W1),                                  # only_assignee_can_decide: a preparer
         w(ANN, "work.cancel", W1),                                   # only_assignee_can_decide: the opener
         w(BEN, "work.complete", W9),                                 # work_must_exist
         w(BEN, "work.cancel", W9),                                   # work_must_exist
-        w(BEN, "work.complete", W1, meta="done"),                    # accepted, at 7
+        w(BEN, "work.complete", W1, meta="done"),                    # accepted, at 8
         w(BEN, "work.complete", W1),                                 # work_is_decided_once
         w(BEN, "work.cancel", W1),                                   # work_is_decided_once
         w(BEN, "work.ask", W1, preparer_id=EVE),                     # work_must_be_undecided
         w(DEE, "work.reply", W1),                                    # work_must_be_undecided: asked, never replied
-        w(ANN, "work.create", W2),                                   # accepted, at 8
-        w(ANN, "work.assign", W2, assignee_id=ANN),                  # accepted: the opener to itself, at 9
-        w(ANN, "work.cancel", W2, meta="won't be done"),             # accepted: cancelled, nobody asked, at 10
+        w(ANN, "work.create", W2),                                   # accepted, at 9
+        w(ANN, "work.assign", W2, assignee_id=ANN),                  # accepted: the opener to itself, at 10
+        w(ANN, "work.cancel", W2, meta="won't be done"),             # accepted: cancelled, nobody asked, at 11
         w(ANN, "work.complete", W2),                                 # work_is_decided_once
-        w(ANN, "work.create", W3),                                   # accepted, at 11
-        w(ANN, "work.assign", W3, assignee_id=BEN),                  # accepted, at 12
-        w(BEN, "work.complete", W3),                                 # accepted: completed, no preparer, at 13
+        w(ANN, "work.create", W3),                                   # accepted, at 12
+        w(ANN, "work.assign", W3, assignee_id=BEN),                  # accepted, at 13
+        w(BEN, "work.complete", W3),                                 # accepted: completed, no preparer, at 14
         read(S1),
         close(BEN, S1),                                              # only_opener_can_close
-        close(ANN, S1),                                              # accepted, at 14
+        close(ANN, S1),                                              # accepted, at 15
         w(ANN, "work.create", W4),                                   # stream_must_be_open (admission)
         read(S1),
         SCHEMA,

@@ -98,8 +98,8 @@ WORK_COMMANDS = [
                          "preparer_must_not_be_the_assignee", "preparer_is_asked_once"], ASSIGNEE,
             ["work_id", "preparer_id"]),
     command("work.reply", "work.replied", WORK_PARAMS,
-            ADMISSION + ["work_must_exist", "only_asked_preparers_can_reply", "work_must_be_undecided",
-                         "preparer_replies_once"], "a preparer the assignee asked", ["work_id"]),
+            ADMISSION + ["work_must_exist", "only_asked_preparers_can_reply", "work_must_be_undecided"],
+            "a preparer the assignee asked", ["work_id"]),
     command("work.complete", "work.completed", WORK_PARAMS,
             ADMISSION + ["work_must_exist", "only_assignee_can_decide", "work_is_decided_once"], ASSIGNEE, ["work_id"]),
     command("work.cancel", "work.cancelled", WORK_PARAMS,
@@ -312,7 +312,7 @@ class Model:
                 return "only_asked_preparers_can_reply"
             if self.decided(k):
                 return "work_must_be_undecided"
-            return "preparer_replies_once" if (k, actor) in self.replied else None
+            return None                                  # a later reply supersedes the preparer's earlier one
         if cmd in ("work.complete", "work.cancel"):
             if k not in self.work:
                 return "work_must_exist"

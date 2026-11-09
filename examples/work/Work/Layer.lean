@@ -6,8 +6,8 @@ import Provenstream.Interface
 # Work: a layer on the core
 
 A basic task system. The stream's opener creates a work item and assigns it; the assignee asks any number of
-preparers to prepare it, each of whom replies once with its preparation; the assignee then completes or cancels the
-item, once.
+preparers to prepare it, each of whom replies with its preparation, and may reply again while the item is undecided
+(a later reply supersedes the preparer's earlier one); the assignee then completes or cancels the item, once.
 
 - `work.create {stream_id, work_id, meta?}` → `work.created`: the opener creates an item, its id new on the stream.
 - `work.assign {stream_id, work_id, assignee_id, meta?}` → `work.assigned`: the opener assigns an item to any
@@ -15,7 +15,8 @@ item, once.
 - `work.ask {stream_id, work_id, preparer_id, meta?}` → `work.asked`: the assignee asks a principal other than itself
   to prepare the item, each once, while the item is undecided.
 - `work.reply {stream_id, work_id, meta?}` → `work.replied`: an asked preparer replies with its preparation (in
-  `meta`), once, while the item is undecided.
+  `meta`), while the item is undecided. It may reply again, so a composer can post a later screen; a reader takes a
+  preparer's last reply as its preparation. A reply decides nothing.
 - `work.complete {stream_id, work_id, meta?}` → `work.completed`, `work.cancel {stream_id, work_id, meta?}` →
   `work.cancelled`: the assignee decides the item, once; nothing about the item follows.
 
@@ -168,8 +169,6 @@ abbrev work : Layer where
                | .asked a _ _ p _ => a != p | _ => true⟩,
             ⟨"preparer_is_asked_once", ["work.ask"], fun _ w e => match e with
                | .asked _ _ k p _ => !w.contains ("asked", k, p) | _ => true⟩,
-            ⟨"preparer_replies_once", ["work.reply"], fun _ w e => match e with
-               | .replied a _ k _ => !w.contains ("replied", k, a) | _ => true⟩,
             ⟨"work_is_decided_once", ["work.complete", "work.cancel"], fun _ w e => match e with
                | .completed _ _ k _ | .cancelled _ _ k _ => !decided w k | _ => true⟩]
 

@@ -170,9 +170,9 @@ The work layer (`examples/work`) is a basic task system on the core directly: th
 `only_opener_can_create`, `work_id_must_be_new`) and assigns it, to any principal, itself included (`work.assign`:
 `only_opener_can_assign`, `work_must_exist`, `work_is_assigned_once`); the assignee asks any number of other
 principals to prepare it (`work.ask`: `work_must_exist`, `only_assignee_can_ask`, `work_must_be_undecided`,
-`preparer_must_not_be_the_assignee`, `preparer_is_asked_once`); each asked preparer replies once, its preparation in
-`meta` (`work.reply`: `work_must_exist`, `only_asked_preparers_can_reply`, `work_must_be_undecided`,
-`preparer_replies_once`); and the assignee completes or cancels the item, once, whether or not anyone replied
+`preparer_must_not_be_the_assignee`, `preparer_is_asked_once`); each asked preparer replies, its preparation in
+`meta`, and may reply again while the item is undecided, a later reply superseding its earlier one (`work.reply`:
+`work_must_exist`, `only_asked_preparers_can_reply`, `work_must_be_undecided`); and the assignee completes or cancels the item, once, whether or not anyone replied
 (`work.complete`, `work.cancel`: `work_must_exist`, `only_assignee_can_decide`, `work_is_decided_once`). Its headline
 theorem is `decision_final`: once an item is completed or cancelled, no work event about it is accepted. Who may read
 a reply is not the proof's business: the host restricts no read, so an application that wants preparers to work

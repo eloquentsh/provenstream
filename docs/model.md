@@ -179,13 +179,14 @@ A basic task system on the core directly. Every id is any UUID; a reply's prepar
 | `work.create {stream_id, work_id, meta?}` | `work.created {work_id}` | `only_opener_can_create`, `work_id_must_be_new` |
 | `work.assign {stream_id, work_id, assignee_id, meta?}` | `work.assigned {work_id, assignee_id}` | `only_opener_can_assign`, `work_must_exist`, `work_is_assigned_once` |
 | `work.ask {stream_id, work_id, preparer_id, meta?}` | `work.asked {work_id, preparer_id}` | `work_must_exist`, `only_assignee_can_ask`, `work_must_be_undecided`, `preparer_must_not_be_the_assignee`, `preparer_is_asked_once` |
-| `work.reply {stream_id, work_id, meta?}` | `work.replied {work_id}` | `work_must_exist`, `only_asked_preparers_can_reply`, `work_must_be_undecided`, `preparer_replies_once` |
+| `work.reply {stream_id, work_id, meta?}` | `work.replied {work_id}` | `work_must_exist`, `only_asked_preparers_can_reply`, `work_must_be_undecided` |
 | `work.complete {stream_id, work_id, meta?}` | `work.completed {work_id}` | `work_must_exist`, `only_assignee_can_decide`, `work_is_decided_once` |
 | `work.cancel {stream_id, work_id, meta?}` | `work.cancelled {work_id}` | `work_must_exist`, `only_assignee_can_decide`, `work_is_decided_once` |
 
 An item is decided when it is completed or cancelled. The opener may assign an item to itself; the assignee may not
 ask itself to prepare; an unassigned item can be neither asked about nor decided (the assignee rules fail with no
-assignee). Completion needs no reply.
+assignee). Completion needs no reply. An asked preparer may reply again while the item is undecided: a
+later reply supersedes its earlier one, so a composer can post a later screen. A reader takes a preparer's last reply.
 
 | theorem | statement |
 |---|---|
@@ -194,7 +195,7 @@ assignee). Completion needs no reply.
 | `replied_by_asked_preparer` | every reply is by a preparer the assignee asked, the assignee named by the opener |
 | `completed_by_assignee`, `cancelled_by_assignee` | every decision is by the item's assignee |
 | `preparer_ne_assignee` | no preparer is the item's assignee |
-| `created_once`, `item_created`, `assigned_once`, `asked_once`, `replied_once`, `decided_once` | each step once, and on a created item |
+| `created_once`, `item_created`, `assigned_once`, `asked_once`, `decided_once` | each step but a reply once, and on a created item |
 | `decision_final` | after an item is completed or cancelled, no work event about it is accepted (`no_event_once_decided`, `decision_admitted`) |
 | `work_close_by_opener`, `work_close_final` | the core's, inherited |
 

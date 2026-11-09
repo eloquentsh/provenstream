@@ -59,7 +59,7 @@ The layers here build their permissions on the same fact, the stream's opener, w
   `only_assignee_can_ask`, `only_asked_preparers_can_reply`, `only_assignee_can_decide`). Theorems:
   `created_by_opener`, `assigned_by_opener`, `asked_by_assignee`, `replied_by_asked_preparer`,
   `completed_by_assignee`, `cancelled_by_assignee`, `preparer_ne_assignee`, `created_once`, `item_created`,
-  `assigned_once`, `asked_once`, `replied_once`, `decided_once`, `decision_final` (nothing about an item after its
+  `assigned_once`, `asked_once`, `decided_once`, `decision_final` (nothing about an item after its
   decision); and the core's (`work_close_by_opener`, `work_close_final`).
 
 [`docs/model.md`](model.md) tables each layer's commands, events, rules and theorems.

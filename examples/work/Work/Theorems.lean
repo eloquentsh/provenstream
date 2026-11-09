@@ -214,18 +214,9 @@ theorem asked_once {pre post : work.XLog} {a t k p : Id} {m : Meta}
   rw [hx] at this
   exact Bool.noConfusion this
 
-/-- A preparer replies at most once per item. -/
-theorem replied_once {pre post : work.XLog} {a t k : Id} {m : Meta}
-    (h : ValidX (pre ++ .inr (.replied a t k m) :: post)) :
-    ∀ m', (.inr (WorkEvent.replied a t k m') : work.XEv) ∉ pre := by
-  have := h.holdsNamed "preparer_replies_once"
-  dsimp only at this
-  simp only [read_notes, Commands.evStream_mk, Bool.not_eq_true'] at this
-  intro m' hm
-  have hx : ((evs pre t).flatMap notes).contains ("replied", k, a) = true :=
-    List.contains_iff_mem.mpr (List.mem_flatMap.mpr ⟨_, mem_evs.mpr ⟨hm, rfl⟩, by simp [notes]⟩)
-  rw [hx] at this
-  exact Bool.noConfusion this
+/- A preparer may reply more than once while the item is undecided: a later reply supersedes its earlier one, and
+no theorem says a reply is once. Every reply is still by a preparer the assignee asked (`replied_by_asked_preparer`),
+and none follows the decision (`decision_final`). -/
 
 /-! ## A decision is final -/
 
