@@ -22,6 +22,7 @@ root package and `<commit>/<package>` for another. One commit of this repository
 | `examples/solochangecontrol` | `<commit>/examples/solochangecontrol` | `<repo>/tree/<commit>/examples/solochangecontrol` |
 | `examples/email` | `<commit>/examples/email` | `<repo>/tree/<commit>/examples/email` |
 | `examples/emailtriage` | `<commit>/examples/emailtriage` | `<repo>/tree/<commit>/examples/emailtriage` |
+| `examples/email-triage-and-reply` | `<commit>/examples/email-triage-and-reply` | `<repo>/tree/<commit>/examples/email-triage-and-reply` |
 | the tower | `<commit>/tests/tower` | `<repo>/tree/<commit>/tests/tower` |
 
 - **Build**: `provenstream engine build --repo R --commit C --out B [--package P]` takes the commit's files only

@@ -2,7 +2,7 @@
 
 This is Provenstream's main suite. It is many command sequences, valid and invalid, sent to a host through any
 carrier, across the proofs of one commit that have sequences: the core, `examples/log`, `examples/principals`, `examples/tasks`,
-`examples/work` and the tower (`tests/tower`); `examples/solochangecontrol`, `examples/email` and `examples/emailtriage` have none yet. Each one comes with its validated outcome: every answer, every refusal and the rule it
+`examples/work` and the tower (`tests/tower`); `examples/solochangecontrol`, `examples/email`, `examples/emailtriage` and `examples/email-triage-and-reply` have none yet. Each one comes with its validated outcome: every answer, every refusal and the rule it
 names, every event at its seq, and every chain head, read back and recomputed. It also covers the host's own
 interface: authentication, parsing, reads, paging, idempotency, `actor_id`, discovery, `principal.create` and the
 host's refusals.

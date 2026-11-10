@@ -3,8 +3,8 @@
 Lean 4 (v4.35.0), core library only: no Mathlib, no `import Lean` on the verified path. The one import beyond `Init` is
 `Std.Data.HashMap` from the toolchain's own Std, used by the unproved engine edge (`Provenstream/Engine/Step.lean`, its
 cache), not by anything verified. Sources in `Provenstream/` (the core), `examples/log`, `examples/principals`,
-`examples/tasks`, `examples/work`, `examples/solochangecontrol`, `examples/email`, `examples/emailtriage` and
-`tests/tower` (layers on it).
+`examples/tasks`, `examples/work`, `examples/solochangecontrol`, `examples/email`, `examples/emailtriage`,
+`examples/email-triage-and-reply` and `tests/tower` (layers on it).
 
 ## Events, commands, requests
 
@@ -295,6 +295,53 @@ of `examples/email`, and this layer does not check it. `replied` means a reply w
 | `nothing_is_asked_or_advised_after_the_review` | after a review, no ask or advice on the triage is accepted |
 | `nothing_follows_a_decision` | after a triage is replied to or ignored, no triage event about it is accepted |
 | `the_creator_can_always_ignore` | a theorem of acceptance: after any valid log in which the stream is open with opener `a` and the triage exists and is undecided, the service accepts `a`'s ignore |
+| `only_the_opener_closes_the_stream`, `nothing_follows_a_close` | the core's, inherited |
+
+### `examples/email-triage-and-reply`
+
+One person's mail on one stream, on the core directly. It grows from `examples/email` and `examples/emailtriage`. The
+owner of every email and triage is the opener. Helpers are declared as persons (`principal.invite`) or agents
+(`principal.summon`). A person delegates its own authority to a declared principal (`principal.delegate`). A
+delegation lasts for the stream's life, and each delegate has one delegator. A delegate of the owner acts with the
+owner's authority. The terminal commands need a person, so an agent delegate never makes them. The `_eml_url` fields
+are `eml` text, and the `.eml` URLs of one email are unique on it. `verdict` is exactly `reply`, `work`, `ignore` or
+`defer`.
+
+| command | event | rules |
+|---|---|---|
+| `principal.invite {stream_id, principal_id, meta?}` | `principal.invited` | `only_opener_or_delegates_can_invite`, `principal_must_be_new` |
+| `principal.summon {stream_id, principal_id, meta?}` | `principal.summoned` | `only_opener_or_delegates_can_summon`, `principal_must_be_new` |
+| `principal.delegate {stream_id, delegate_id, meta?}` | `principal.delegated` | `only_persons_can_delegate`, `delegate_must_be_declared`, `delegate_must_not_be_the_delegator`, `delegate_must_be_new` |
+| `email.create {stream_id, email_id, in_reply_to_eml_url?, meta?}` | `email.created` | `only_opener_or_delegates_can_create`, `email_id_must_be_new` |
+| `email.solicit {stream_id, email_id, preparer_id, meta?}` | `email.solicited` | `email_must_exist`, `only_owner_or_delegates_can_solicit`, `preparer_must_not_be_the_owner`, `preparer_must_be_declared`, `preparer_must_not_be_the_soliciter`, `preparer_is_solicited_once`, `preparer_must_not_be_a_drafter`, `email_must_be_undecided` |
+| `email.prepare {stream_id, email_id, preparation_url, meta?}` | `email.prepared` | `email_must_exist`, `only_solicited_preparers_can_prepare`, `email_must_be_undecided` |
+| `email.draft {stream_id, email_id, draft_eml_url, screen_url, meta?}` | `email.drafted` | `email_must_exist`, `eml_urls_must_be_unique`, `drafter_must_not_be_a_preparer`, `only_owner_or_delegates_can_draft`, `email_must_be_undecided` |
+| `email.send {stream_id, email_id, sent_eml_url, meta?}` | `email.sent` | `email_must_exist`, `eml_urls_must_be_unique`, `only_owner_or_person_delegates_can_decide`, `email_is_decided_once` |
+| `email.discard {stream_id, email_id, meta?}` | `email.discarded` | `email_must_exist`, `only_owner_or_person_delegates_can_decide`, `email_is_decided_once` |
+| `triage.request {stream_id, triage_id, message_eml_url, meta?}` | `triage.requested` | `only_opener_or_delegates_can_request`, `triage_id_must_be_new` |
+| `triage.ask {stream_id, triage_id, adviser_id, meta?}` | `triage.asked` | `triage_must_exist`, `only_owner_or_delegates_can_ask`, `adviser_must_not_be_the_owner`, `adviser_must_be_declared`, `adviser_must_not_be_the_asker`, `adviser_is_asked_once`, `adviser_must_not_be_a_considerer`, `triage_must_be_undecided` |
+| `triage.advise {stream_id, triage_id, verdict, meta?}` | `triage.advised` | `triage_must_exist`, `only_asked_advisers_can_advise`, `adviser_advises_once`, `triage_must_be_undecided` |
+| `triage.consider {stream_id, triage_id, verdict, meta?}` | `triage.considered` | `triage_must_exist`, `considerer_must_not_be_an_adviser`, `only_owner_or_delegates_can_consider`, `triage_must_be_undecided` |
+| `triage.reply {stream_id, triage_id, email_id, meta?}` | `triage.replied` | `triage_must_exist`, `only_owner_or_person_delegates_can_decide`, `triage_is_decided_once`, `reply_must_name_an_unclaimed_email` |
+| `triage.work {stream_id, triage_id, work_id, meta?}`, `triage.ignore {stream_id, triage_id, meta?}`, `triage.defer {stream_id, triage_id, meta?}` | `triage.worked`, `triage.ignored`, `triage.deferred` | `triage_must_exist`, `only_owner_or_person_delegates_can_decide`, `triage_is_decided_once` |
+
+Soliciting, preparing, asking and advising go on until the decision. A deferral closes a triage as the other
+decisions do. A reply names an email created on this stream that no earlier reply names. The theorems are named as
+the sentence each proves.
+
+| theorem | statement |
+|---|---|
+| `a_principal_is_declared_once`, `no_person_is_an_agent`, `the_opener_is_never_declared` | a principal is declared once, as one kind, and never the opener |
+| `every_delegator_is_a_person`, `every_delegate_is_declared`, `each_delegate_has_one_delegator` | only persons delegate, only declared principals are delegates, and each has one delegator |
+| `a_delegation_adds_exactly_its_pair`, `a_delegation_is_permanent` | a delegation changes one pair and lasts |
+| `every_act_is_by_the_owner_or_a_delegate`, `no_act_rests_on_a_chain` | every act on an item is the owner's or its own delegate's |
+| `every_terminal_decision_is_by_the_owner_or_a_person_delegate`, `no_agent_makes_a_terminal_decision` | the terminal commands need a person |
+| `Email.no_preparer_is_a_drafter`, `Triage.no_adviser_is_a_considerer`, `Email.roles_are_disjoint`, `Triage.roles_are_disjoint` | the roles never meet on one item |
+| `Email.every_solicited_preparer_was_declared`, `Triage.every_asked_adviser_was_declared` | a preparer or an adviser is declared first |
+| `Email.soliciting_goes_on_after_a_draft`, `Email.preparing_goes_on_after_a_draft`, `Triage.asking_goes_on_after_a_consideration`, `Triage.advising_goes_on_after_a_consideration` | theorems of acceptance: the work goes on until the decision |
+| `Email.emls_are_distinct`, `Email.nothing_follows_a_decision`, `Triage.nothing_follows_a_decision`, `Triage.nothing_follows_a_deferral` | the `.eml` URLs differ, and nothing follows a decision |
+| `Reply.every_reply_names_a_created_email`, `Reply.an_email_answers_one_triage`, `Reply.no_email_answers_two_triages` | the reply rule |
+| `the_creator_can_always_send`, `the_creator_can_always_ignore`, `the_creator_can_always_defer`, `the_creator_can_always_reply` | theorems of acceptance: the owner or a person delegate decides an undecided item |
 | `only_the_opener_closes_the_stream`, `nothing_follows_a_close` | the core's, inherited |
 
 ### The tower (`tests/tower`)

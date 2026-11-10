@@ -1,0 +1,21 @@
+name = "emailtriageandreply"
+version = "0.1.0"
+defaultTargets = ["EmailTriageAndReply", "email-triage-and-reply-engine"]
+
+# The core, by path: this example lives in the provenstream repository. A layer project of its own requires it by git
+# URL and commit instead (see `provenstream init`).
+[[require]]
+name = "provenstream"
+path = "../.."
+
+# The email triage and reply layer: it imports `Provenstream.Interface` and nothing else of the core.
+[[lean_lib]]
+name = "EmailTriageAndReply"
+
+# The revision the engine is built from (written before the build; not in git).
+[[lean_lib]]
+name = "EmailTriageAndReplyRevision"
+
+[[lean_exe]]
+name = "email-triage-and-reply-engine"
+root = "EmailTriageAndReplyMain"

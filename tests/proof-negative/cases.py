@@ -181,4 +181,40 @@ ANYONE_ASKS = {
     "fails_at": None,
 }
 
-CASES = [ANYONE_OPENS, ANYONE_ASSIGNS, ANYONE_FINISHES, OTHER_CLOSES, CLOSE_TWICE, TAKES_A_CORE_NAME, ANYONE_ASKS]
+# The email triage and reply layer (examples/email-triage-and-reply): the reply rule, and the person a terminal needs.
+
+ANY_EMAIL_ANSWERS = {
+    "name": "any-email-answers",
+    "what": "the rule reply_must_name_an_unclaimed_email checks only that the email exists; the theorem that an email "
+            "answers one triage (an_email_answers_one_triage) must fail",
+    "layer": "examples/email-triage-and-reply",
+    "lib": "EmailTriageAndReply",
+    "edits": [
+        ("EmailTriageAndReply/Layer.lean",
+         """               | .triage (.replied _ _ _ x _) => noted w "email" x && !replyClaimed w x | _ => true⟩]""",
+         """               | .triage (.replied _ _ _ x _) => noted w "email" x | _ => true⟩]"""),
+    ],
+    "target": "EmailTriageAndReply.Theorems",
+    "fails_in": "an_email_answers_one_triage",
+    "fails_at": None,
+}
+
+AN_AGENT_SENDS = {
+    "name": "an-agent-sends",
+    "what": "the email's terminal rule also lets a summoned agent decide; the theorem that every terminal decision is "
+            "by the owner or a person delegate must fail",
+    "layer": "examples/email-triage-and-reply",
+    "lib": "EmailTriageAndReply",
+    "edits": [
+        ("EmailTriageAndReply/Layer.lean",
+         """               | .email (.sent a ..) | .email (.discarded a ..) => personForOwner v.opener w a | _ => true⟩,""",
+         """               | .email (.sent a ..) | .email (.discarded a ..) => personForOwner v.opener w a ||
+                 noted w "summoned" a | _ => true⟩,"""),
+    ],
+    "target": "EmailTriageAndReply.Theorems",
+    "fails_in": "every_terminal_decision_is_by_the_owner_or_a_person_delegate",
+    "fails_at": None,
+}
+
+CASES = [ANYONE_OPENS, ANYONE_ASSIGNS, ANYONE_FINISHES, OTHER_CLOSES, CLOSE_TWICE, TAKES_A_CORE_NAME, ANYONE_ASKS,
+         ANY_EMAIL_ANSWERS, AN_AGENT_SENDS]
