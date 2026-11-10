@@ -5,7 +5,7 @@
 a fresh engine and seals the outputs; `corpus/replay` checks them byte for byte.
 
 Each session's prefix names its engine: `core-*` the core's (`.lake/build/bin/core-engine`), `log-*`, `principals-*`,
-`tasks-*` and `work-*` the examples' (`examples/<name>`), `tower-*` the three-level tower's (`tests/tower`). The `core-*`
+`tasks-*`, `work-*` and `solochangecontrol-*` the examples' (`examples/<name>`), `tower-*` the three-level tower's (`tests/tower`). The `core-*`
 sessions are also the stream interface's (`host/provenstream/interface/`, byte-identical copies): every engine must
 answer them as the core does.
 
@@ -446,6 +446,72 @@ def work_malformed():
     ]]
 
 
+def solochangecontrol_rules():
+    """The solo change control layer: every layer rule refusing, the field forms, the core's admission on its events,
+    and every command accepted."""
+    url = REPO + "/tree/" + C40 + "/examples/solochangecontrol"
+    c = lambda actor, name, k, **kv: cmd(actor, name, S1, change_id=k, **kv)
+    git = "https://git.example.org/acme/app/commit/"
+    r0, r1 = git + "r0", git + "r1"
+    b1, b2, b3 = git + "branch-1", git + "branch-2", git + "branch-3"
+    p1, p2, p3 = git + "push-1", git + "push-2", git + "push-3"
+    rv1, rv2, rv3, rv4 = git + "review-1", git + "review-2", git + "review-3", git + "review-4"
+    m1, m2 = git + "merge-1", git + "merge-2"
+    shots = "https://files.example.org/"
+    screen, screen2, screen3 = shots + "screen-1.svg", shots + "screen-2.svg", shots + "screen-3.svg"
+    return [
+        c(ANN, "change.create", W1, from_revision_url=r0),           # stream_must_exist (admission)
+        open_(ANN, S1, url=url),                                     # accepted, at 0
+        c(BEN, "change.create", W1, from_revision_url=r0),           # only_opener_can_create
+        c(ANN, "change.create", W1, from_revision_url="not a url"),  # the form: not a URL
+        c(ANN, "change.create", W1, from_revision_url=r0, meta="fix the parser"),  # accepted, at 1
+        c(ANN, "change.create", W1, from_revision_url=r1),           # change_id_must_be_new
+        c(ANN, "change.branch", W9, developer_id=BEN, branch_revision_url=b1),  # change_must_exist
+        c(ANN, "change.branch", W1, developer_id=BEN, branch_revision_url=r0),  # revisions_must_be_unique: its start
+        c(BEN, "change.branch", W1, developer_id=CY, branch_revision_url=b1),   # only_opener_can_branch
+        c(ANN, "change.branch", W1, developer_id=ANN, branch_revision_url=b1),  # developer_must_not_be_the_opener
+        c(BEN, "change.push", W1, pushed_revision_url=p1),           # only_branched_developers_can_push
+        c(ANN, "change.branch", W1, developer_id=BEN, branch_revision_url=b1),  # accepted, at 2
+        c(ANN, "change.branch", W1, developer_id=BEN, branch_revision_url=b2),  # developer_is_branched_once
+        c(BEN, "change.push", W1, pushed_revision_url="not a url"),  # the form: not a URL
+        c(BEN, "change.push", W1, pushed_revision_url=b1),           # revisions_must_be_unique: its branch
+        c(BEN, "change.push", W1, pushed_revision_url=p1),           # accepted, at 3
+        c(BEN, "change.push", W1, pushed_revision_url=p2),           # accepted: as often as it likes, at 4
+        c(BEN, "change.review", W1, reviewed_revision_url=rv1, screen_url=screen),  # reviewer_must_not_be_a_developer
+        c(ANN, "change.review", W1, reviewed_revision_url=rv1, screen_url=screen),  # reviewer_must_not_be_the_opener
+        c(DEE, "change.review", W1, reviewed_revision_url=rv1, screen_url="not a url"),  # the form: not a URL
+        c(DEE, "change.review", W1, reviewed_revision_url=p1, screen_url=screen),  # revisions_must_be_unique: a push
+        c(DEE, "change.review", W1, reviewed_revision_url=rv1, screen_url=screen),  # accepted, at 5
+        c(DEE, "change.review", W1, reviewed_revision_url=rv2, screen_url=screen2),  # accepted: again, at 6
+        c(ANN, "change.branch", W1, developer_id=DEE, branch_revision_url=b2),  # developer_must_not_be_a_reviewer
+        c(ANN, "change.branch", W1, developer_id=CY, branch_revision_url=b2),   # accepted, at 7
+        c(BEN, "change.pull", W1),                                   # only_opener_can_pull
+        c(ANN, "change.pull", W1, meta="enough"),                    # accepted, at 8
+        c(ANN, "change.pull", W1),                                   # change_is_pulled_once
+        c(ANN, "change.branch", W1, developer_id=EVE, branch_revision_url=b3),  # change_must_not_be_pulled
+        c(CY, "change.push", W1, pushed_revision_url=p3),            # change_must_not_be_pulled
+        c(EVE, "change.review", W1, reviewed_revision_url=rv3, screen_url=screen3),  # accepted: after the pull, at 9
+        c(BEN, "change.merge", W1, merged_revision_url=m1),          # only_opener_can_decide
+        c(ANN, "change.merge", W1, merged_revision_url="not a url"),  # the form: not a URL
+        c(ANN, "change.merge", W1, merged_revision_url=rv1),         # revisions_must_be_unique: a review
+        c(ANN, "change.merge", W1, merged_revision_url=m1, meta="merged"),  # accepted, at 10
+        c(ANN, "change.merge", W1, merged_revision_url=m2),          # change_is_decided_once
+        c(ANN, "change.abandon", W1),                                # change_is_decided_once
+        c(DEE, "change.review", W1, reviewed_revision_url=rv4, screen_url=screen),  # change_must_be_undecided
+        c(ANN, "change.create", W2, from_revision_url=r0),           # accepted: a revision of another change, at 11
+        c(ANN, "change.branch", W2, developer_id=BEN, branch_revision_url=b1),  # accepted: unique per change, at 12
+        c(BEN, "change.abandon", W2),                                # only_opener_can_decide
+        c(ANN, "change.abandon", W2, meta="superseded"),             # accepted, at 13
+        c(BEN, "change.push", W2, pushed_revision_url=p1),           # change_must_be_undecided
+        c(ANN, "change.branch", W2, developer_id=CY, branch_revision_url=b2),   # change_must_be_undecided
+        c(ANN, "change.pull", W2),                                   # change_must_be_undecided
+        read(S1),
+        close(ANN, S1),                                              # accepted, at 14
+        c(ANN, "change.create", W3, from_revision_url=r0),           # stream_must_be_open (admission)
+        SCHEMA,
+    ]
+
+
 def tower_rules():
     """The tower (reviews on tasks on the core): every rule of the review layer refusing, its guard on the core's
     stream.close, the tasks layer's and the core's rules still judging at the top, and every command accepted."""
@@ -502,6 +568,7 @@ def main():
     write("tasks-malformed", tasks_malformed())
     write("work-rules", work_rules())
     write("work-malformed", work_malformed())
+    write("solochangecontrol-rules", solochangecontrol_rules())
     write("tower-rules", tower_rules())
 
 
