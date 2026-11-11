@@ -4,9 +4,9 @@
 # Record the corpus: run each session through a fresh engine, write its output, and seal inputs and outputs
 # (SHA256SUMS). Only after a deliberate change of answers; `corpus/replay` checks the record.
 #
-# Each session's prefix names its engine (core, log, principals, tasks, work, meeting, post, action, email-triage-and-reply, tower); an
+# Each session's prefix names its engine (core, log, principals, tasks, work, meeting, post, action, email-triage-and-reply, solochangecontrol, tower); an
 # environment variable overrides one (CORE_ENGINE, LOG_ENGINE, PRINCIPALS_ENGINE, TASKS_ENGINE, WORK_ENGINE, MEETING_ENGINE, POST_ENGINE,
-# ACTION_ENGINE, EMAIL_TRIAGE_AND_REPLY_ENGINE, TOWER_ENGINE).
+# ACTION_ENGINE, EMAIL_TRIAGE_AND_REPLY_ENGINE, SOLOCHANGECONTROL_ENGINE, TOWER_ENGINE).
 #
 #   corpus/record
 set -eu
@@ -21,6 +21,7 @@ meeting="${MEETING_ENGINE:-$root/examples/meeting/.lake/build/bin/meeting-engine
 post="${POST_ENGINE:-$root/examples/post/.lake/build/bin/post-engine}"
 action="${ACTION_ENGINE:-$root/examples/action/.lake/build/bin/action-engine}"
 emailtriageandreply="${EMAIL_TRIAGE_AND_REPLY_ENGINE:-$root/examples/email-triage-and-reply/.lake/build/bin/email-triage-and-reply-engine}"
+solochangecontrol="${SOLOCHANGECONTROL_ENGINE:-$root/examples/solochangecontrol/.lake/build/bin/solochangecontrol-engine}"
 tower="${TOWER_ENGINE:-$root/tests/tower/.lake/build/bin/tower-engine}"
 LEAN_ABORT_ON_PANIC=1; export LEAN_ABORT_ON_PANIC
 for in in "$dir"/sessions/*.in.jsonl; do
@@ -28,7 +29,7 @@ for in in "$dir"/sessions/*.in.jsonl; do
   case "$name" in
     core-*) engine="$core" ;; log-*) engine="$log" ;; principals-*) engine="$principals" ;;
     tasks-*) engine="$tasks" ;; work-*) engine="$work" ;; meeting-*) engine="$meeting" ;; post-*) engine="$post" ;; action-*) engine="$action" ;;
-    email-triage-and-reply-*) engine="$emailtriageandreply" ;; tower-*) engine="$tower" ;;
+    email-triage-and-reply-*) engine="$emailtriageandreply" ;; solochangecontrol-*) engine="$solochangecontrol" ;; tower-*) engine="$tower" ;;
     *) echo "record: $name: no engine" >&2; exit 1 ;; esac
   $engine < "$in" > "$dir/sessions/$name.out.jsonl"
 done
