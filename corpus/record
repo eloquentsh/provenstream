@@ -4,8 +4,8 @@
 # Record the corpus: run each session through a fresh engine, write its output, and seal inputs and outputs
 # (SHA256SUMS). Only after a deliberate change of answers; `corpus/replay` checks the record.
 #
-# Each session's prefix names its engine (core, log, principals, tasks, work, tower); an environment variable overrides one
-# (CORE_ENGINE, LOG_ENGINE, PRINCIPALS_ENGINE, TASKS_ENGINE, WORK_ENGINE, TOWER_ENGINE).
+# Each session's prefix names its engine (core, log, principals, tasks, work, meeting, post, action, tower); an environment variable overrides one
+# (CORE_ENGINE, LOG_ENGINE, PRINCIPALS_ENGINE, TASKS_ENGINE, WORK_ENGINE, MEETING_ENGINE, POST_ENGINE, ACTION_ENGINE, TOWER_ENGINE).
 #
 #   corpus/record
 set -eu
@@ -16,13 +16,16 @@ log="${LOG_ENGINE:-$root/examples/log/.lake/build/bin/log-engine}"
 principals="${PRINCIPALS_ENGINE:-$root/examples/principals/.lake/build/bin/principals-engine}"
 tasks="${TASKS_ENGINE:-$root/examples/tasks/.lake/build/bin/tasks-engine}"
 work="${WORK_ENGINE:-$root/examples/work/.lake/build/bin/work-engine}"
+meeting="${MEETING_ENGINE:-$root/examples/meeting/.lake/build/bin/meeting-engine}"
+post="${POST_ENGINE:-$root/examples/post/.lake/build/bin/post-engine}"
+action="${ACTION_ENGINE:-$root/examples/action/.lake/build/bin/action-engine}"
 tower="${TOWER_ENGINE:-$root/tests/tower/.lake/build/bin/tower-engine}"
 LEAN_ABORT_ON_PANIC=1; export LEAN_ABORT_ON_PANIC
 for in in "$dir"/sessions/*.in.jsonl; do
   name="$(basename "$in" .in.jsonl)"
   case "$name" in
     core-*) engine="$core" ;; log-*) engine="$log" ;; principals-*) engine="$principals" ;;
-    tasks-*) engine="$tasks" ;; work-*) engine="$work" ;; tower-*) engine="$tower" ;;
+    tasks-*) engine="$tasks" ;; work-*) engine="$work" ;; meeting-*) engine="$meeting" ;; post-*) engine="$post" ;; action-*) engine="$action" ;; tower-*) engine="$tower" ;;
     *) echo "record: $name: no engine" >&2; exit 1 ;; esac
   $engine < "$in" > "$dir/sessions/$name.out.jsonl"
 done

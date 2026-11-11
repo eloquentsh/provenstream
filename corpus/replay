@@ -5,7 +5,7 @@
 # equal the recorded one byte for byte. The sessions are checked against the seal (SHA256SUMS) first. Each session's
 # prefix names its engine: core-* the core's, log-*, principals-*, tasks-* and work-* the examples' (examples/<name>),
 # tower-* the three-level tower's (tests/tower). An environment variable overrides one (CORE_ENGINE, LOG_ENGINE,
-# PRINCIPALS_ENGINE, TASKS_ENGINE, WORK_ENGINE, TOWER_ENGINE); each may be a command with arguments.
+# PRINCIPALS_ENGINE, TASKS_ENGINE, WORK_ENGINE, MEETING_ENGINE, POST_ENGINE, ACTION_ENGINE, TOWER_ENGINE); each may be a command with arguments.
 #
 #   corpus/replay
 set -eu
@@ -16,6 +16,9 @@ log="${LOG_ENGINE:-$root/examples/log/.lake/build/bin/log-engine}"
 principals="${PRINCIPALS_ENGINE:-$root/examples/principals/.lake/build/bin/principals-engine}"
 tasks="${TASKS_ENGINE:-$root/examples/tasks/.lake/build/bin/tasks-engine}"
 work="${WORK_ENGINE:-$root/examples/work/.lake/build/bin/work-engine}"
+meeting="${MEETING_ENGINE:-$root/examples/meeting/.lake/build/bin/meeting-engine}"
+post="${POST_ENGINE:-$root/examples/post/.lake/build/bin/post-engine}"
+action="${ACTION_ENGINE:-$root/examples/action/.lake/build/bin/action-engine}"
 tower="${TOWER_ENGINE:-$root/tests/tower/.lake/build/bin/tower-engine}"
 if command -v sha256sum >/dev/null 2>&1; then sum="sha256sum"; else sum="shasum -a 256"; fi
 (cd "$dir" && $sum -c SHA256SUMS >/dev/null) || { echo "replay: the sessions do not match the seal" >&2; exit 1; }
@@ -25,7 +28,7 @@ for in in "$dir"/sessions/*.in.jsonl; do
   name="$(basename "$in" .in.jsonl)"
   case "$name" in
     core-*) engine="$core" ;; log-*) engine="$log" ;; principals-*) engine="$principals" ;;
-    tasks-*) engine="$tasks" ;; work-*) engine="$work" ;; tower-*) engine="$tower" ;;
+    tasks-*) engine="$tasks" ;; work-*) engine="$work" ;; meeting-*) engine="$meeting" ;; post-*) engine="$post" ;; action-*) engine="$action" ;; tower-*) engine="$tower" ;;
     *) echo "replay: $name: no engine" >&2; exit 1 ;; esac
   sessions=$((sessions + 1)); lines=$((lines + $(wc -l < "$in")))
   if ! $engine < "$in" | diff -u "$dir/sessions/$name.out.jsonl" - > /dev/null; then

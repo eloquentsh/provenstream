@@ -181,4 +181,55 @@ ANYONE_ASKS = {
     "fails_at": None,
 }
 
-CASES = [ANYONE_OPENS, ANYONE_ASSIGNS, ANYONE_FINISHES, OTHER_CLOSES, CLOSE_TWICE, TAKES_A_CORE_NAME, ANYONE_ASKS]
+# The action layer (examples/action): the rule the gate rests on.
+
+ASKER_ANSWERS = {
+    "name": "asker-answers",
+    "what": "the action layer's rule asker_must_not_answer lets whoever asked approve its own action; the theorem that the "
+            "asker never approves (the_asker_never_approves) must fail",
+    "layer": "examples/action",
+    "lib": "Action",
+    "edits": [
+        ("Action/Layer.lean",
+         """               | .approved a _ k _ | .rejected a _ k _ => !w.contains ("action", k, a) | _ => true⟩,""",
+         """               | .approved .. => true | .rejected a _ k _ => !w.contains ("action", k, a) | _ => true⟩,"""),
+    ],
+    "target": "Action.Theorems",
+    "fails_in": "the_asker_never_approves",
+    "fails_at": None,
+}
+
+ATTEMPT_UNCHECKED = {
+    "name": "attempt-unchecked",
+    "what": "the action layer's rule an_attempt_must_be_allowed lets an action be recorded as done whatever its answer; the theorem that "
+            "every recorded attempt was allowed (every_recorded_attempt_was_allowed) must fail",
+    "layer": "examples/action",
+    "lib": "Action",
+    "edits": [
+        ("Action/Layer.lean",
+         """               | .recorded _ _ k o _ _ => o == "not_run" || mayRun w k | _ => true⟩,""",
+         """               | .recorded .. => true | _ => true⟩,"""),
+    ],
+    "target": "Action.Theorems",
+    "fails_in": "every_recorded_attempt_was_allowed",
+    "fails_at": None,
+}
+
+ANYONE_OVERRIDES = {
+    "name": "anyone-overrides",
+    "what": "the action layer's rule only_overriders_can_override lets anyone override a rejection; the theorem that every override is by "
+            "an overrider the opener named (every_override_is_by_a_named_overrider) must fail",
+    "layer": "examples/action",
+    "lib": "Action",
+    "edits": [
+        ("Action/Layer.lean",
+         """               | .overridden a .. => w.contains ("overrider", "", a) | _ => true⟩,""",
+         """               | .overridden .. => true | _ => true⟩,"""),
+    ],
+    "target": "Action.Theorems",
+    "fails_in": "every_override_is_by_a_named_overrider",
+    "fails_at": None,
+}
+
+CASES = [ANYONE_OPENS, ANYONE_ASSIGNS, ANYONE_FINISHES, OTHER_CLOSES, CLOSE_TWICE, TAKES_A_CORE_NAME, ANYONE_ASKS,
+         ASKER_ANSWERS, ATTEMPT_UNCHECKED, ANYONE_OVERRIDES]

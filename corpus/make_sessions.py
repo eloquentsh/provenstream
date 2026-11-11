@@ -5,7 +5,7 @@
 a fresh engine and seals the outputs; `corpus/replay` checks them byte for byte.
 
 Each session's prefix names its engine: `core-*` the core's (`.lake/build/bin/core-engine`), `log-*`, `principals-*`,
-`tasks-*` and `work-*` the examples' (`examples/<name>`), `tower-*` the three-level tower's (`tests/tower`). The `core-*`
+`tasks-*`, `work-*`, `meeting-*`, `post-*` and `action-*` the examples' (`examples/<name>`), `tower-*` the three-level tower's (`tests/tower`). The `core-*`
 sessions are also the stream interface's (`host/provenstream/interface/`, byte-identical copies): every engine must
 answer them as the core does.
 
@@ -446,6 +446,158 @@ def work_malformed():
     ]]
 
 
+def meeting_commands(stream):
+    """Meeting commands on `stream`: `m(actor, name, meeting_id, **params)`."""
+    return lambda actor, name, k, **kv: cmd(actor, name, stream, meeting_id=k, **kv)
+
+
+def meeting_rules():
+    """The meeting layer: every layer rule refusing, the core's admission on its events, and every command accepted."""
+    murl = REPO + "/tree/" + C40 + "/examples/meeting"
+    m = meeting_commands(S1)
+    pin = "https://files.example.org/b/" + C64 + "#sha256=" + C64 + "&name=final.ics"
+    pin2 = "https://files.example.org/b/" + C64[::-1] + "#sha256=" + C64[::-1] + "&name=final.ics"
+    screen, screen2 = "https://files.example.org/screen-1.svg", "https://files.example.org/screen-2.svg"
+    draft, draft2 = "https://files.example.org/read-1.md", "https://files.example.org/read-2.txt"
+    acct = "gcal:ann@example.org"
+    return [
+        m(ANN, "meeting.create", W1),                                # stream_must_exist (admission)
+        open_(ANN, S1, url=murl),                                    # accepted, at 0
+        m(BEN, "meeting.create", W1),                                # only_opener_can_create
+        m(ANN, "meeting.create", W1, meta="lunch with Ben"),         # accepted, at 1
+        m(ANN, "meeting.create", W1),                                # meeting_id_must_be_new
+        m(ANN, "meeting.solicit", W9, drafter_id=BEN),               # meeting_must_exist
+        m(CY, "meeting.solicit", W1, drafter_id=BEN),                # only_opener_can_solicit
+        m(ANN, "meeting.solicit", W1, drafter_id=ANN),               # drafter_must_not_be_the_opener
+        m(BEN, "meeting.draft", W1, draft_url=draft),                # only_solicited_drafters_can_draft
+        m(ANN, "meeting.solicit", W1, drafter_id=BEN),               # accepted, at 2
+        m(ANN, "meeting.solicit", W1, drafter_id=BEN),               # drafter_is_solicited_once
+        m(BEN, "meeting.draft", W1, draft_url=draft),                # accepted: any text file, at 3
+        m(BEN, "meeting.draft", W1, draft_url=draft),                # urls_must_be_unique
+        m(BEN, "meeting.draft", W1, draft_url=draft2),               # accepted: as often as it likes, at 4
+        m(BEN, "meeting.compose", W1, composed_url=pin, account=acct, screen_url=screen),  # composer_must_not_be_a_drafter
+        m(ANN, "meeting.compose", W1, composed_url=pin, account=acct, screen_url=screen),  # composer_must_not_be_the_opener
+        m(CY, "meeting.compose", W1, composed_url="https://files.example.org/final.ics", account=acct, screen_url=screen),  # composed_url_must_be_pinned
+        m(ANN, "meeting.send", W1, sent_url=pin),                    # sent_must_be_the_latest_composed: none yet
+        m(CY, "meeting.compose", W1, composed_url=pin, account=acct, screen_url=screen),  # accepted, at 5
+        m(ANN, "meeting.solicit", W1, drafter_id=CY),                # drafter_must_not_be_a_composer
+        m(ANN, "meeting.solicit", W1, drafter_id=DEE),               # meeting_must_not_be_composed
+        m(BEN, "meeting.draft", W1, draft_url="https://files.example.org/read-3.md"),  # meeting_must_not_be_composed
+        m(CY, "meeting.compose", W1, composed_url=pin2, account=acct, screen_url=screen2),  # accepted: a revision, at 6
+        m(ANN, "meeting.send", W1, sent_url=pin),                    # sent_must_be_the_latest_composed: an older one
+        m(BEN, "meeting.send", W1, sent_url=pin2),                   # only_opener_can_decide
+        m(ANN, "meeting.send", W1, sent_url=pin2, meta="send it"),   # accepted, at 7
+        m(ANN, "meeting.send", W1, sent_url=pin2),                   # meeting_is_decided_once
+        m(ANN, "meeting.discard", W1),                               # meeting_is_decided_once
+        m(ANN, "meeting.solicit", W1, drafter_id=EVE),               # meeting_must_not_be_composed: tried first
+        m(CY, "meeting.compose", W1, composed_url=pin + "x.ics", account=acct, screen_url=screen),  # meeting_must_be_undecided
+        m(ANN, "meeting.create", W2),                                # accepted, at 8
+        m(BEN, "meeting.discard", W2),                               # only_opener_can_decide
+        m(ANN, "meeting.discard", W2, meta="not needed"),            # accepted, at 9
+        m(ANN, "meeting.solicit", W2, drafter_id=BEN),               # meeting_must_be_undecided
+        read(S1),
+        close(ANN, S1),                                              # accepted, at 10
+        m(ANN, "meeting.create", W3),                                # stream_must_be_open (admission)
+        SCHEMA,
+    ]
+
+
+def action_rules():
+    """The action layer: every layer rule refusing, the core's admission on its events, and every command accepted."""
+    murl = REPO + "/tree/" + C40 + "/examples/action"
+    pin = "https://files.example.org/b/" + C64 + "#sha256=" + C64 + "&name=context.json"
+    def a(actor, name, k, **kv):
+        return cmd(actor, name, S1, action_id=k, **kv)
+    def ev(actor, k, mode="readonly"):
+        return a(actor, "action.evaluate", k, context_url=pin, mode=mode)
+    return [
+        ev(BEN, W1),                                                  # stream_must_exist (admission)
+        open_(ANN, S1, url=murl),                                     # accepted, at 0
+        cmd(BEN, "evaluator.name", S1, evaluator_id=CY),              # only_opener_can_name_evaluators
+        cmd(ANN, "evaluator.name", S1, evaluator_id=ANN),             # evaluator_must_not_be_the_opener
+        cmd(ANN, "evaluator.name", S1, evaluator_id=CY),              # accepted, at 1
+        cmd(ANN, "evaluator.name", S1, evaluator_id=CY),              # evaluator_is_named_once
+        a(CY, "action.approve", W1),                                  # action_must_exist
+        a(BEN, "action.evaluate", W1, context_url="https://files.example.org/c.json", mode="readonly"),  # context_url_must_be_pinned
+        ev(BEN, W1),                                                  # accepted, at 2
+        ev(BEN, W1),                                                  # action_id_must_be_new
+        a(BEN, "action.approve", W1),                                 # only_opener_or_evaluator_can_answer
+        a(CY, "action.approve", W1, meta="score 120"),                # accepted, at 3
+        a(ANN, "action.reject", W1),                                  # action_is_answered_once
+        ev(BEN, W2, mode="action_allowed"),                           # accepted, at 4
+        a(CY, "action.reject", W2, meta="completes the task"),        # accepted, at 5
+        a(DEE, "action.override", W2),                                # only_overriders_can_override
+        cmd(ANN, "overrider.name", S1, overrider_id=DEE),             # accepted
+        a(DEE, "action.override", W2, meta="code typed"),             # accepted
+        a(DEE, "action.override", W2),                                # action_is_overridden_once
+        ev(CY, W9),                                                   # accepted, at 6
+        a(CY, "action.approve", W9),                                  # asker_must_not_answer
+        a(ANN, "action.reject", W9, meta="no"),                       # accepted, at 7
+        a(CY, "action.record", W1, outcome="done", result_url=pin),   # only_the_asker_records
+        a(BEN, "action.record", W1, outcome="done", result_url="https://files.example.org/r.json"),  # result_url_must_be_pinned
+        a(BEN, "action.record", W1, outcome="done", result_url=pin),  # accepted, at 8
+        a(BEN, "action.record", W1, outcome="done", result_url=pin),  # action_is_recorded_once
+        a(CY, "action.record", W9, outcome="done", result_url=pin),   # an_attempt_must_be_allowed
+        a(CY, "action.record", W9, outcome="not_run", result_url=pin),  # accepted, at 9
+    ]
+
+
+def post_commands(stream):
+    """Post commands on `stream`: `m(actor, name, post_id, **params)`."""
+    return lambda actor, name, k, **kv: cmd(actor, name, stream, post_id=k, **kv)
+
+
+def post_rules():
+    """The post layer: every layer rule refusing, the core's admission on its events, and every command accepted."""
+    murl = REPO + "/tree/" + C40 + "/examples/post"
+    m = post_commands(S1)
+    pin = "https://files.example.org/b/" + C64 + "#sha256=" + C64 + "&name=final.activity.json"
+    pin2 = "https://files.example.org/b/" + C64[::-1] + "#sha256=" + C64[::-1] + "&name=final.activity.json"
+    screen, screen2 = "https://files.example.org/screen-1.svg", "https://files.example.org/screen-2.svg"
+    draft, draft2 = "https://files.example.org/read-1.md", "https://files.example.org/read-2.txt"
+    acct = "ann.example.org"
+    return [
+        m(ANN, "post.create", W1),                                # stream_must_exist (admission)
+        open_(ANN, S1, url=murl),                                    # accepted, at 0
+        m(BEN, "post.create", W1),                                # only_opener_can_create
+        m(ANN, "post.create", W1, meta="a reply to Ben"),         # accepted, at 1
+        m(ANN, "post.create", W1),                                # post_id_must_be_new
+        m(ANN, "post.solicit", W9, drafter_id=BEN),               # post_must_exist
+        m(CY, "post.solicit", W1, drafter_id=BEN),                # only_opener_can_solicit
+        m(ANN, "post.solicit", W1, drafter_id=ANN),               # drafter_must_not_be_the_opener
+        m(BEN, "post.draft", W1, draft_url=draft),                # only_solicited_drafters_can_draft
+        m(ANN, "post.solicit", W1, drafter_id=BEN),               # accepted, at 2
+        m(ANN, "post.solicit", W1, drafter_id=BEN),               # drafter_is_solicited_once
+        m(BEN, "post.draft", W1, draft_url=draft),                # accepted: any text file, at 3
+        m(BEN, "post.draft", W1, draft_url=draft),                # urls_must_be_unique
+        m(BEN, "post.draft", W1, draft_url=draft2),               # accepted: as often as it likes, at 4
+        m(BEN, "post.compose", W1, composed_url=pin, account=acct, screen_url=screen),  # composer_must_not_be_a_drafter
+        m(ANN, "post.compose", W1, composed_url=pin, account=acct, screen_url=screen),  # composer_must_not_be_the_opener
+        m(CY, "post.compose", W1, composed_url="https://files.example.org/final.activity.json", account=acct, screen_url=screen),  # composed_url_must_be_pinned
+        m(ANN, "post.send", W1, sent_url=pin),                    # sent_must_be_the_latest_composed: none yet
+        m(CY, "post.compose", W1, composed_url=pin, account=acct, screen_url=screen),  # accepted, at 5
+        m(ANN, "post.solicit", W1, drafter_id=CY),                # drafter_must_not_be_a_composer
+        m(ANN, "post.solicit", W1, drafter_id=DEE),               # post_must_not_be_composed
+        m(BEN, "post.draft", W1, draft_url="https://files.example.org/read-3.md"),  # post_must_not_be_composed
+        m(CY, "post.compose", W1, composed_url=pin2, account=acct, screen_url=screen2),  # accepted: a revision, at 6
+        m(ANN, "post.send", W1, sent_url=pin),                    # sent_must_be_the_latest_composed: an older one
+        m(BEN, "post.send", W1, sent_url=pin2),                   # only_opener_can_decide
+        m(ANN, "post.send", W1, sent_url=pin2, meta="send it"),   # accepted, at 7
+        m(ANN, "post.send", W1, sent_url=pin2),                   # post_is_decided_once
+        m(ANN, "post.discard", W1),                               # post_is_decided_once
+        m(ANN, "post.solicit", W1, drafter_id=EVE),               # post_must_not_be_composed: tried first
+        m(CY, "post.compose", W1, composed_url=pin + "x.activity.json", account=acct, screen_url=screen),  # post_must_be_undecided
+        m(ANN, "post.create", W2),                                # accepted, at 8
+        m(BEN, "post.discard", W2),                               # only_opener_can_decide
+        m(ANN, "post.discard", W2, meta="not needed"),            # accepted, at 9
+        m(ANN, "post.solicit", W2, drafter_id=BEN),               # post_must_be_undecided
+        read(S1),
+        close(ANN, S1),                                              # accepted, at 10
+        m(ANN, "post.create", W3),                                # stream_must_be_open (admission)
+        SCHEMA,
+    ]
+
+
 def tower_rules():
     """The tower (reviews on tasks on the core): every rule of the review layer refusing, its guard on the core's
     stream.close, the tasks layer's and the core's rules still judging at the top, and every command accepted."""
@@ -502,6 +654,9 @@ def main():
     write("tasks-malformed", tasks_malformed())
     write("work-rules", work_rules())
     write("work-malformed", work_malformed())
+    write("meeting-rules", meeting_rules())
+    write("post-rules", post_rules())
+    write("action-rules", action_rules())
     write("tower-rules", tower_rules())
 
 

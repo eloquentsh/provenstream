@@ -1,0 +1,21 @@
+name = "action"
+version = "0.1.0"
+defaultTargets = ["Action", "action-engine"]
+
+# The core, by path: this example lives in the provenstream repository. A layer project of its own requires it by git
+# URL and commit instead (see `provenstream init`).
+[[require]]
+name = "provenstream"
+path = "../.."
+
+# The action layer: it imports `Provenstream.Interface` and nothing else of the core.
+[[lean_lib]]
+name = "Action"
+
+# The revision the engine is built from (written before the build; not in git).
+[[lean_lib]]
+name = "ActionRevision"
+
+[[lean_exe]]
+name = "action-engine"
+root = "ActionMain"
