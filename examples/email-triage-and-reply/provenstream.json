@@ -1,0 +1,17 @@
+{
+  "name": "emailtriageandreply",
+  "engine": "email-triage-and-reply-engine",
+  "namespaces": [
+    "EmailTriageAndReply"
+  ],
+  "layer_modules": [
+    "EmailTriageAndReply/Layer.lean",
+    "EmailTriageAndReply/Theorems.lean",
+    "EmailTriageAndReply/Examples.lean"
+  ],
+  "audit_roots": [
+    "EmailTriageAndReply.mailbox"
+  ],
+  "revision_module": "EmailTriageAndReplyRevision.lean",
+  "revision_def": "EmailTriageAndReply.built"
+}

@@ -12,7 +12,7 @@
 #   5. the core engine's self-test and description; it serves coreService (project.py inherits)
 #   6. every gap stated in Provenstream/Theorems.lean has a row in docs/tcb.md, and every row a statement
 #   7. the examples, each a layer on the core (examples/log, examples/principals, examples/tasks, examples/work, examples/meeting, examples/post, examples/action,
-#      examples/solochangecontrol, examples/email, examples/emailtriage): build, axioms,
+#      examples/solochangecontrol, examples/email, examples/emailtriage, examples/email-triage-and-reply): build, axioms,
 #      words, imports, audit, inherits, self-test, description, interface (project.py)
 #   8. the three-level tower (tests/tower: reviews on tasks on the core): the same checks, on a layer on a layer
 #   8b. the proofs that do not inherit from the core's (tests/not-the-interface): each fails project.py's checks
@@ -30,9 +30,11 @@ step() { printf '\n== %s\n' "$*"; }
 
 sources() {
   find Provenstream examples/log/Log examples/principals/Principals examples/tasks/Tasks examples/work/Work examples/meeting/Meeting examples/post/Post examples/action/Action \
-    examples/solochangecontrol/SoloChangeControl examples/email/Email examples/emailtriage/EmailTriage tests/tower/Tower -name '*.lean' | sort
+    examples/solochangecontrol/SoloChangeControl examples/email/Email examples/emailtriage/EmailTriage \
+    examples/email-triage-and-reply/EmailTriageAndReply tests/tower/Tower -name '*.lean' | sort
   ls ./*.lean examples/log/*.lean examples/principals/*.lean examples/tasks/*.lean examples/work/*.lean examples/meeting/*.lean examples/post/*.lean examples/action/*.lean \
-    examples/solochangecontrol/*.lean examples/email/*.lean examples/emailtriage/*.lean tests/tower/*.lean \
+    examples/solochangecontrol/*.lean examples/email/*.lean examples/emailtriage/*.lean \
+    examples/email-triage-and-reply/*.lean tests/tower/*.lean \
     | grep -v 'Revision.lean$' | grep -v ProvenstreamCheck.lean
 }
 
@@ -70,7 +72,8 @@ done
 echo "$(wc -w <<<"$gaps" | tr -d ' ') gaps, each stated in Theorems.lean and tabled in docs/tcb.md"
 
 step "7. the examples"
-for d in examples/log examples/principals examples/tasks examples/work examples/meeting examples/post examples/action examples/solochangecontrol examples/email examples/emailtriage; do
+for d in examples/log examples/principals examples/tasks examples/work examples/meeting examples/post examples/action examples/solochangecontrol examples/email \
+    examples/emailtriage examples/email-triage-and-reply; do
   printf -- '-- %s\n' "$d"
   PYTHONPATH=host "$PY" -m provenstream.project "$d"
 done

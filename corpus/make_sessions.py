@@ -5,7 +5,8 @@
 a fresh engine and seals the outputs; `corpus/replay` checks them byte for byte.
 
 Each session's prefix names its engine: `core-*` the core's (`.lake/build/bin/core-engine`), `log-*`, `principals-*`,
-`tasks-*`, `work-*`, `meeting-*`, `post-*` and `action-*` the examples' (`examples/<name>`), `tower-*` the three-level tower's (`tests/tower`). The `core-*`
+`tasks-*`, `work-*`, `meeting-*`, `post-*`, `action-*` and `email-triage-and-reply-*` the examples' (`examples/<name>`), `tower-*` the three-level
+tower's (`tests/tower`). The `core-*`
 sessions are also the stream interface's (`host/provenstream/interface/`, byte-identical copies): every engine must
 answer them as the core does.
 
@@ -598,6 +599,133 @@ def post_rules():
     ]
 
 
+def email_triage_and_reply_rules():
+    """The email-triage-and-reply layer: every layer rule refusing, the field forms, the core's admission on its events,
+    and every command accepted."""
+    url = REPO + "/tree/" + C40 + "/examples/email-triage-and-reply"
+    FAY = "f0000000-0000-4000-8000-000000000006"                   # never declared on the stream
+    T1, T2, T3, T4, T5, T9 = ("71000000-0000-7000-8000-000000000001", "71000000-0000-7000-8000-000000000002",
+                              "71000000-0000-7000-8000-000000000003", "71000000-0000-7000-8000-000000000004",
+                              "71000000-0000-7000-8000-000000000005", "71000000-0000-7000-8000-000000000009")
+    p = lambda actor, name, **kv: cmd(actor, name, S1, **kv)
+    m = lambda actor, name, k, **kv: cmd(actor, name, S1, email_id=k, **kv)
+    t = lambda actor, name, k, **kv: cmd(actor, name, S1, triage_id=k, **kv)
+    files = "https://files.example.org/"
+    inbound, d1, d2, d3 = files + "inbound.eml", files + "draft-1.eml", files + "draft-2.eml", files + "draft-3.eml"
+    sent, sent2, screen, screen2 = files + "sent-1.eml", files + "sent-2.eml", files + "screen-1.svg", files + "screen-2.svg"
+    notes1, notes2 = files + "notes-1.md", files + "notes-2.md"
+    msg1, msg2, msg3, msg4, msg5 = (files + "inbound-" + n + ".eml" for n in "12345")
+    return [
+        m(ANN, "email.create", W1),                                  # stream_must_exist (admission)
+        open_(ANN, S1, url=url),                                     # accepted, at 0
+        # principals: BEN and DEE persons, CY and EVE agents; BEN and CY delegates of ANN, EVE of DEE
+        p(BEN, "principal.invite", principal_id=DEE),                # only_opener_or_delegates_can_invite
+        p(BEN, "principal.summon", principal_id=DEE),                # only_opener_or_delegates_can_summon
+        p(ANN, "principal.invite", principal_id=ANN),                # principal_must_be_new: the opener
+        p(ANN, "principal.invite", principal_id=BEN, meta="a person"),  # accepted, at 1
+        p(ANN, "principal.summon", principal_id=BEN),                # principal_must_be_new
+        p(ANN, "principal.summon", principal_id=CY, meta="an agent"),  # accepted, at 2
+        p(CY, "principal.delegate", delegate_id=BEN),                # only_persons_can_delegate
+        p(ANN, "principal.delegate", delegate_id=DEE),               # delegate_must_be_declared
+        p(BEN, "principal.delegate", delegate_id=BEN),               # delegate_must_not_be_the_delegator
+        p(ANN, "principal.delegate", delegate_id=BEN),               # accepted, at 3
+        p(ANN, "principal.delegate", delegate_id=CY),                # accepted, at 4
+        p(BEN, "principal.delegate", delegate_id=CY),                # delegate_must_be_new
+        p(BEN, "principal.invite", principal_id=DEE),                # accepted: by a delegate, at 5
+        p(CY, "principal.summon", principal_id=EVE),                 # accepted: by an agent delegate, at 6
+        p(DEE, "principal.delegate", delegate_id=EVE),               # accepted: a person for itself, at 7
+        # email
+        m(DEE, "email.create", W1),                                  # only_opener_or_delegates_can_create
+        m(EVE, "email.create", W1),                                  # only_opener_or_delegates_can_create: DEE's delegate
+        m(ANN, "email.create", W1, in_reply_to_eml_url=files + "inbound.txt"),  # the form: not an .eml
+        m(ANN, "email.create", W1, in_reply_to_eml_url=inbound, meta="answer Ben"),  # accepted: a reply, at 8
+        m(CY, "email.create", W1),                                   # email_id_must_be_new
+        m(CY, "email.create", W2),                                   # accepted: by an agent delegate, at 9
+        m(ANN, "email.create", W3, in_reply_to_eml_url=None),        # accepted: null, at 10
+        m(ANN, "email.solicit", W9, preparer_id=DEE),                # email_must_exist
+        m(DEE, "email.solicit", W1, preparer_id=EVE),                # only_owner_or_delegates_can_solicit
+        m(BEN, "email.solicit", W1, preparer_id=ANN),                # preparer_must_not_be_the_owner
+        m(ANN, "email.solicit", W1, preparer_id=FAY),                # preparer_must_be_declared
+        m(BEN, "email.solicit", W1, preparer_id=BEN),                # preparer_must_not_be_the_soliciter
+        m(DEE, "email.prepare", W1, preparation_url=notes1),         # only_solicited_preparers_can_prepare
+        m(ANN, "email.solicit", W1, preparer_id=DEE),                # accepted, at 11
+        m(BEN, "email.solicit", W1, preparer_id=DEE),                # preparer_is_solicited_once
+        m(DEE, "email.prepare", W1, preparation_url="not a url"),    # the form: not a URL
+        m(DEE, "email.prepare", W1, preparation_url=notes1),         # accepted, at 12
+        m(DEE, "email.prepare", W1, preparation_url=notes2),         # accepted: as often as it likes, at 13
+        m(ANN, "email.solicit", W1, preparer_id=EVE),                # accepted: an agent preparer, at 14
+        m(DEE, "email.draft", W1, draft_eml_url=d1, screen_url=screen),  # drafter_must_not_be_a_preparer
+        m(EVE, "email.draft", W2, draft_eml_url=d1, screen_url=screen),  # only_owner_or_delegates_can_draft
+        m(CY, "email.draft", W1, draft_eml_url=inbound, screen_url=screen),  # eml_urls_must_be_unique: its reply_to
+        m(CY, "email.draft", W1, draft_eml_url=files + "draft.txt", screen_url=screen),  # the form: not an .eml
+        m(CY, "email.draft", W1, draft_eml_url=d1, screen_url="not a url"),  # the form: not a URL
+        m(CY, "email.draft", W1, draft_eml_url=d1, screen_url=screen),  # accepted: by an agent delegate, at 15
+        m(ANN, "email.solicit", W1, preparer_id=CY),                 # preparer_must_not_be_a_drafter
+        m(BEN, "email.draft", W1, draft_eml_url=d1, screen_url=screen2),  # eml_urls_must_be_unique
+        m(BEN, "email.draft", W1, draft_eml_url=d2, screen_url=screen2),  # accepted, at 16
+        m(CY, "email.send", W1, sent_eml_url=sent),                  # only_owner_or_person_delegates_can_decide: an agent
+        m(DEE, "email.send", W1, sent_eml_url=sent),                 # only_owner_or_person_delegates_can_decide
+        m(BEN, "email.send", W1, sent_eml_url=d2),                   # eml_urls_must_be_unique: a draft
+        m(ANN, "email.send", W1, sent_eml_url=files + "sent.txt"),   # the form: not an .eml
+        m(BEN, "email.send", W1, sent_eml_url=sent, meta="sent for Ann"),  # accepted: a person delegate, at 17
+        m(ANN, "email.send", W1, sent_eml_url=sent2),                # email_is_decided_once
+        m(ANN, "email.discard", W1),                                 # email_is_decided_once
+        m(DEE, "email.prepare", W1, preparation_url=notes2),         # email_must_be_undecided
+        m(CY, "email.draft", W1, draft_eml_url=d3, screen_url=screen),  # email_must_be_undecided
+        m(CY, "email.discard", W2),                                  # only_owner_or_person_delegates_can_decide
+        m(ANN, "email.discard", W3, meta="not needed"),              # accepted, at 18
+        # triage
+        t(DEE, "triage.request", T1, message_eml_url=msg1),          # only_opener_or_delegates_can_request
+        t(ANN, "triage.request", T1, message_eml_url=files + "inbound.txt"),  # the form: not an .eml
+        t(ANN, "triage.request", T1, message_eml_url=msg1, meta="from Ben"),  # accepted, at 19
+        t(CY, "triage.request", T1, message_eml_url=msg2),           # triage_id_must_be_new
+        t(ANN, "triage.ask", T9, adviser_id=DEE),                    # triage_must_exist
+        t(DEE, "triage.ask", T1, adviser_id=EVE),                    # only_owner_or_delegates_can_ask
+        t(BEN, "triage.ask", T1, adviser_id=ANN),                    # adviser_must_not_be_the_owner
+        t(ANN, "triage.ask", T1, adviser_id=FAY),                    # adviser_must_be_declared
+        t(CY, "triage.ask", T1, adviser_id=CY),                      # adviser_must_not_be_the_asker
+        t(DEE, "triage.advise", T1, verdict="reply"),                # only_asked_advisers_can_advise
+        t(ANN, "triage.ask", T1, adviser_id=DEE),                    # accepted, at 20
+        t(BEN, "triage.ask", T1, adviser_id=DEE),                    # adviser_is_asked_once
+        t(DEE, "triage.advise", T1, verdict="maybe"),                # the form: not a verdict
+        t(DEE, "triage.advise", T1, verdict="reply", meta="a friend"),  # accepted, at 21
+        t(DEE, "triage.advise", T1, verdict="ignore"),               # adviser_advises_once
+        t(ANN, "triage.ask", T1, adviser_id=EVE),                    # accepted: an agent adviser, at 22
+        t(EVE, "triage.advise", T1, verdict="defer"),                # accepted, at 23
+        t(DEE, "triage.consider", T1, verdict="work"),               # considerer_must_not_be_an_adviser
+        t(FAY, "triage.consider", T1, verdict="work"),               # only_owner_or_delegates_can_consider
+        t(CY, "triage.consider", T1, verdict="soon"),                # the form: not a verdict
+        t(CY, "triage.consider", T1, verdict="reply"),               # accepted: by an agent delegate, at 24
+        t(ANN, "triage.ask", T1, adviser_id=CY),                     # adviser_must_not_be_a_considerer
+        t(CY, "triage.consider", T1, verdict="work"),                # accepted: as often as it likes, at 25
+        t(CY, "triage.reply", T1, email_id=W1),                      # only_owner_or_person_delegates_can_decide: an agent
+        t(EVE, "triage.reply", T1, email_id=W1),                     # only_owner_or_person_delegates_can_decide
+        t(ANN, "triage.reply", T1, email_id=W9),                     # reply_must_name_an_unclaimed_email: no such email
+        t(BEN, "triage.reply", T1, email_id=W1, meta="answered"),    # accepted: a person delegate, at 26
+        t(ANN, "triage.reply", T1, email_id=W2),                     # triage_is_decided_once
+        t(ANN, "triage.work", T1, work_id=W4),                       # triage_is_decided_once
+        t(ANN, "triage.ignore", T1),                                 # triage_is_decided_once
+        t(ANN, "triage.defer", T1),                                  # triage_is_decided_once
+        t(ANN, "triage.ask", T1, adviser_id=BEN),                    # triage_must_be_undecided
+        t(CY, "triage.consider", T1, verdict="ignore"),              # triage_must_be_undecided
+        t(ANN, "triage.request", T2, message_eml_url=msg2),          # accepted, at 27
+        t(BEN, "triage.reply", T2, email_id=W1),                     # reply_must_name_an_unclaimed_email: claimed
+        t(CY, "triage.work", T2, work_id=W4),                        # only_owner_or_person_delegates_can_decide
+        t(ANN, "triage.work", T2, work_id=W4),                       # accepted, at 28
+        t(CY, "triage.request", T3, message_eml_url=msg3),           # accepted: by an agent delegate, at 29
+        t(BEN, "triage.ignore", T3, meta="a newsletter"),            # accepted, at 30
+        t(ANN, "triage.request", T4, message_eml_url=msg4),          # accepted, at 31
+        t(CY, "triage.defer", T4),                                   # only_owner_or_person_delegates_can_decide
+        t(ANN, "triage.defer", T4, meta="next week"),                # accepted, at 32
+        t(ANN, "triage.request", T5, message_eml_url=msg4),          # accepted: the message again, a new triage, at 33
+        t(ANN, "triage.reply", T5, email_id=W2),                     # accepted, at 34
+        read(S1),
+        close(ANN, S1),                                              # accepted, at 35
+        t(ANN, "triage.request", T9, message_eml_url=msg5),          # stream_must_be_open (admission)
+        SCHEMA,
+    ]
+
+
 def tower_rules():
     """The tower (reviews on tasks on the core): every rule of the review layer refusing, its guard on the core's
     stream.close, the tasks layer's and the core's rules still judging at the top, and every command accepted."""
@@ -657,6 +785,7 @@ def main():
     write("meeting-rules", meeting_rules())
     write("post-rules", post_rules())
     write("action-rules", action_rules())
+    write("email-triage-and-reply-rules", email_triage_and_reply_rules())
     write("tower-rules", tower_rules())
 
 
